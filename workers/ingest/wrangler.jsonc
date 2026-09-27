@@ -5,7 +5,7 @@
  * and a 14-page bulletin PDF takes far more than the free plan's 10 ms CPU.
  *
  * One-time setup (README.md → "Deploy"):
- *   npx wrangler d1 create saans            → paste database_id below
+ *   npx wrangler d1 create aqi              → paste database_id below
  *   npx wrangler kv namespace create KV     → paste id below (and in apps/web/wrangler.jsonc)
  *   npx wrangler r2 bucket create saans-archive
  *   npx wrangler secret put DATA_GOV_IN_KEY
@@ -33,12 +33,12 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "saans",
+      "database_name": "aqi",
       "database_id": "b0a4c31b-2924-4c02-9b1b-1faa28f509b0",
       "migrations_dir": "migrations"
     }
   ],
-  "kv_namespaces": [{ "binding": "KV", "id": "REPLACE_WITH_KV_NAMESPACE_ID" }],
+  "kv_namespaces": [{ "binding": "KV", "id": "5c4dcfe8473a4d29a40124f41f85e5fe" }],
   "r2_buckets": [{ "binding": "ARCHIVE", "bucket_name": "saans-archive" }],
   "vars": {
     // Sent in the User-Agent to data.gov.in and CPCB so they can reach us.
