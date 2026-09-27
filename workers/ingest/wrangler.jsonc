@@ -34,7 +34,7 @@
     {
       "binding": "DB",
       "database_name": "saans",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "database_id": "b0a4c31b-2924-4c02-9b1b-1faa28f509b0",
       "migrations_dir": "migrations"
     }
   ],
