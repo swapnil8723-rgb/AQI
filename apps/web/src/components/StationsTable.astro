@@ -1,0 +1,140 @@
+---
+/**
+ * Stations table (DESIGN.md §4.8). Every row has an id anchor
+ * (#station-anand-vihar) so station-name searches land on the city page
+ * (PLAN.md §4: stations are anchors, not 500 thin pages).
+ */
+import { POLLUTANT_LABEL, type Pollutant } from '@saans/aqi';
+import { t, type Lang } from '../i18n/index.ts';
+import { slotN, slotU } from '../lib/aqi-ui.ts';
+import { istTime, relative } from '../lib/format.ts';
+import type { BundleStation } from '../lib/bundle.ts';
+
+interface Props {
+  lang: Lang;
+  stations: BundleStation[];
+}
+const { lang, stations } = Astro.props;
+const d = t(lang);
+const valid = stations.filter((s) => s.valid);
+/** Rows shown before "Show all" (JS only — with JS off every row is visible). */
+const VISIBLE = 12;
+const invalid = stations.filter((s) => !s.valid);
+const dom = (s: BundleStation) => s.dominant.map((p: Pollutant) => POLLUTANT_LABEL[p]).join(', ');
+const flagText = (f: string) => {
+  const [p, k] = f.split(':') as [Pollutant, string];
+  return `${POLLUTANT_LABEL[p] ?? p} ${d.stations.flag[k] ?? k}`;
+};
+---
+<section class="card overflow-hidden" aria-labelledby="stations-title" data-stations data-visible={VISIBLE}>
+  <div class="flex items-center gap-2 px-5 pt-5 pb-3">
+    <h2 id="stations-title" class="t-h3 flex-1">{d.stations.title} <span class="text-[var(--color-fg-subtle)] font-normal font-mono text-[14px]">{valid.length}/{stations.length}</span></h2>
+    <div class="flex gap-1" data-js-only hidden>
+      <button type="button" class="btn btn-ghost h-8! px-2! t-small" data-sort="aqi" aria-pressed="true">{d.stations.sortAqi}</button>
+      <button type="button" class="btn btn-ghost h-8! px-2! t-small" data-sort="name" aria-pressed="false">{d.stations.sortName}</button>
+    </div>
+  </div>
+  <table class="st w-full t-small">
+    <thead>
+      <tr>
+        <th scope="col">{d.stations.colStation}</th>
+        <th scope="col" class="r">{d.stations.colAqi}</th>
+        <th scope="col" class="w">{d.stations.colMain}</th>
+        <th scope="col" class="w r">{d.stations.colUpdated}</th>
+      </tr>
+    </thead>
+    <tbody data-sort-body>
+      {valid.map((s) => (
+        <tr id={s.anchor} data-name={s.place} data-aqi-v={s.aqi ?? -1}>
+          <th scope="row">
+            {s.place}
+            <span class="m">{dom(s)}{s.at && ` · ${istTime(s.at)}`}</span>
+            {s.flags.length > 0 && <span class="f">{s.flags.map(flagText).join(' · ')}</span>}
+          </th>
+          <td class="r"><span class="v" data-aqi={slotN(s.aqi)} data-aqi-us={slotU(s.us)}><span class="sq"></span><span class="v-n">{s.aqi}</span><span class="v-us">{s.us ?? '–'}</span></span></td>
+          <td class="w p">{dom(s)}</td>
+          <td class="w r t">{s.at && <time datetime={s.at}>{istTime(s.at)}</time>}</td>
+        </tr>
+      ))}
+    </tbody>
+    {invalid.length > 0 && (
+      <tbody class="bad">
+        <tr><th colspan="4" scope="colgroup" class="t-label">{d.stations.invalid}</th></tr>
+        {invalid.map((s) => (
+          <tr id={s.anchor}>
+            <th scope="row">
+              {s.place}
+              <span class="f">{d.stations.reason[s.reason ?? ''] ?? ''}{s.flags.length > 0 && ` · ${s.flags.map(flagText).join(' · ')}`}</span>
+            </th>
+            <td class="r t">–</td>
+            <td class="w"></td>
+            <td class="w r t">{s.at && relative(s.at, lang)}</td>
+          </tr>
+        ))}
+      </tbody>
+    )}
+  </table>
+  {valid.length > VISIBLE && (
+    <div class="px-5 py-3" data-js-only hidden>
+      <button type="button" class="btn btn-secondary w-full sm:w-auto" data-show-all>{d.stations.showAll(stations.length)}</button>
+    </div>
+  )}
+</section>
+<script>
+  // Sort island: reorders rows, keeps anchors. ~0.4 KB.
+  document.querySelectorAll<HTMLElement>('[data-stations]').forEach((root) => {
+    const body = root.querySelector<HTMLTableSectionElement>('[data-sort-body]');
+    const showAll = root.querySelector<HTMLButtonElement>('[data-show-all]');
+    // Collapse long tables, but never hide the station a link points at.
+    const target = location.hash && root.querySelector(`[id="${CSS.escape(location.hash.slice(1))}"]`);
+    if (showAll && !target) root.dataset.collapsed = '';
+    const expand = () => {
+      delete root.dataset.collapsed;
+      showAll?.parentElement?.remove();
+    };
+    showAll?.addEventListener('click', expand);
+    addEventListener('hashchange', () => {
+      if (root.querySelector(`[id="${CSS.escape(location.hash.slice(1))}"]`)) expand();
+    });
+    const btns = root.querySelectorAll<HTMLButtonElement>('[data-sort]');
+    btns.forEach((b) =>
+      b.addEventListener('click', () => {
+        if (!body) return;
+        const by = b.dataset.sort;
+        const rows = [...body.rows];
+        rows.sort((x, y) =>
+          by === 'name'
+            ? (x.dataset.name ?? '').localeCompare(y.dataset.name ?? '')
+            : Number(y.dataset.aqiV) - Number(x.dataset.aqiV),
+        );
+        body.append(...rows);
+        expand();
+        btns.forEach((o) => o.setAttribute('aria-pressed', String(o === b)));
+      }),
+    );
+  });
+</script>
+<style is:global>
+  /* Global with a prefix, not scoped: scoped styles stamp an attribute on every row. */
+  .st thead { background: var(--color-bg-subtle); box-shadow: inset 0 -1px 0 var(--color-ring); }
+  .st thead th { font-family: var(--font-mono); font-size: 12px; letter-spacing: .04em; text-transform: uppercase; font-weight: 500; color: var(--color-fg-subtle); text-align: left; padding: 10px 12px; }
+  .st th, .st td { padding: 12px; vertical-align: top; }
+  .st tr > :first-child { padding-left: 20px; }
+  .st tr > :last-child { padding-right: 20px; }
+  .st tbody tr { box-shadow: inset 0 -1px 0 var(--color-ring); scroll-margin-top: 96px; }
+  .st tbody[data-sort-body] tr:hover, .st tr:target { background: var(--color-bg-muted); }
+  .st tbody th { text-align: left; font-weight: 500; }
+  .st .r { text-align: right; }
+  .st .m, .st .f { display: block; font-weight: 400; color: var(--color-fg-subtle); font-size: 12px; margin-top: 2px; }
+  .st .m { font-family: var(--font-mono); }
+  .st .v { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 15px; }
+  .st .p, .st .t { font-family: var(--font-mono); font-size: 13px; }
+  .st .t { color: var(--color-fg-subtle); }
+  .st .w { display: none; }
+  @media (min-width: 48rem) { .st .w { display: table-cell; } .st .m { display: none; } }
+  .st .bad tr { color: var(--color-fg-muted); }
+  .st .bad th { font-weight: 400; padding-top: 10px; padding-bottom: 10px; }
+  .st .bad th.t-label { color: var(--color-fg-subtle); padding-top: 16px; }
+  [data-stations][data-collapsed] [data-sort-body] tr:nth-child(n + 13),
+  [data-stations][data-collapsed] tbody.bad { display: none; }
+</style>

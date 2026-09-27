@@ -1,0 +1,84 @@
+---
+import { POLLUTANT_LABEL, type Pollutant } from '@saans/aqi';
+import { t, localePath, type Lang } from '../i18n/index.ts';
+import { CATEGORY_LABEL, catLabel, freshness, slotN, slotU, usLabel } from '../lib/aqi-ui.ts';
+import { istTime, shortDate, todayIst } from '../lib/format.ts';
+import type { BundleBulletin, CityNow, HourPoint } from '../lib/bundle.ts';
+import FreshnessBadge from './FreshnessBadge.astro';
+import ScaleToggle from './ScaleToggle.astro';
+
+interface Props {
+  lang: Lang;
+  name: string;
+  now: CityNow | null;
+  bulletin: BundleBulletin | null;
+  usRange: [number, number] | null;
+  lastHour: HourPoint | null;
+}
+const { lang, name, now, bulletin, usRange, lastHour } = Astro.props;
+const d = t(lang);
+const state = freshness(now?.at);
+// PLAN.md §3.5: stale (> 6 h) hides the big number; the last value goes in small text.
+const show = now && state !== 'stale';
+const slot = show ? slotN(now.aqi) : 'none';
+const other = lang === 'hi' ? 'en' : 'hi';
+
+const today = todayIst();
+function bulletinWhen(date: string): string {
+  if (date === today) return d.hero.today4pm;
+  const y = new Date(Date.parse(`${today}T12:00:00Z`) - 86400_000).toISOString().slice(0, 10);
+  if (date === y) return d.hero.yesterday4pm;
+  return d.hero.on4pm(shortDate(date, lang));
+}
+const dom = now?.dominant.map((p: Pollutant) => POLLUTANT_LABEL[p]).join(', ');
+const stationsText = now ? (now.valid === 1 ? d.hero.station1 : d.hero.stations(now.valid, now.total)) : '';
+const lastKnown = now ?? lastHour;
+---
+<section
+  class="rounded-[12px] p-6 md:p-8"
+  style="background:var(--aqi-fill);color:var(--aqi-on)"
+  data-aqi={slot}
+  data-aqi-us={show ? slotU(now.us) : 'none'}
+  aria-labelledby="hero-label"
+>
+  <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+    <p id="hero-label" class="t-label">{name} · {d.hero.live}</p>
+    <FreshnessBadge iso={now?.at ?? null} lang={lang} onFill />
+    <div class="ml-auto"><ScaleToggle lang={lang} severe={slot === 'severe'} /></div>
+  </div>
+
+  {show ? (
+    <>
+      <p class="t-hero mt-5" data-lcp>
+        <span class="v-n">{now.aqi}</span><span class="v-us">{now.us ?? '–'}</span>
+      </p>
+      <p class="t-h2 mt-3">
+        <span class="v-n">{catLabel(now.aqi, lang)} · <span lang={other} class:list={[other === 'hi' && 'deva']}>{CATEGORY_LABEL[slotN(now.aqi) as keyof typeof CATEGORY_LABEL][other]}</span></span>
+        <span class="v-us">{now.us !== null ? usLabel(now.us, lang) : d.insufficient} <span class="t-small font-normal opacity-80">· {d.scale.usNote}</span></span>
+      </p>
+      <p class="t-small mt-2 opacity-80 font-mono tabular">
+        {dom} · {stationsText} ·{' '}
+        <span class="v-n">{now.min}–{now.max}</span><span class="v-us">{usRange ? `${usRange[0]}–${usRange[1]}` : '–'}</span>
+      </p>
+      {state === 'delayed' && <p class="t-small mt-2 font-medium">{d.hero.delayed(istTime(now.at))}</p>}
+    </>
+  ) : (
+    <div class="mt-5">
+      <p class="t-h2">{now ? d.hero.delayed(istTime(now.at)) : d.hero.noData}</p>
+      {lastKnown && <p class="t-small mt-2 font-mono tabular">{d.hero.lastKnown(lastKnown.aqi, istTime('at' in lastKnown ? lastKnown.at : lastKnown.t))}</p>}
+    </div>
+  )}
+
+  <hr class="my-5 border-0 h-px" style="background:color-mix(in oklab, var(--aqi-on) 20%, transparent)" />
+
+  {bulletin && (
+    <p class="t-small font-medium">
+      <a href={bulletin.url} class="hover:underline" rel="noopener" target="_blank">
+        {d.hero.official} ({bulletinWhen(bulletin.date)}): <span class="font-mono tabular">{bulletin.aqi}</span> · {catLabel(bulletin.aqi, lang)} <span aria-hidden="true">↗</span>
+      </a>
+    </p>
+  )}
+  <p class="t-small mt-1.5">
+    <a href={`${localePath(lang, '/about')}#methodology`} class="underline underline-offset-3">{d.hero.how} →</a>
+  </p>
+</section>

@@ -1,0 +1,21 @@
+---
+/**
+ * Ad slot (DESIGN.md §4.13): fixed min-height so it never shifts layout.
+ * Renders nothing until ADSENSE_CLIENT is set — empty "Advertisement" boxes
+ * look broken and do not help an AdSense review.
+ */
+import { env } from 'cloudflare:workers';
+
+interface Props {
+  slot: string;
+}
+const { slot } = Astro.props;
+const client = (env as { ADSENSE_CLIENT?: string }).ADSENSE_CLIENT;
+---
+{client && (
+  <aside class="rounded-[8px] bg-[var(--color-bg-subtle)] min-h-[280px] md:min-h-[250px] p-2" aria-label="Advertisement">
+    <p class="t-label text-center text-[var(--color-fg-subtle)] py-1">Advertisement</p>
+    <ins class="adsbygoogle block" style="display:block" data-ad-client={client} data-ad-slot={slot} data-ad-format="auto" data-full-width-responsive="true"></ins>
+    <script is:inline>(window.adsbygoogle = window.adsbygoogle || []).push({});</script>
+  </aside>
+)}

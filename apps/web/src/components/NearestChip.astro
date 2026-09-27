@@ -1,0 +1,42 @@
+---
+/**
+ * "Nearest to you" chip (PLAN.md §5.2 item 3): appears only when the visitor
+ * already granted location earlier — never prompts.
+ */
+import { t, type Lang } from '../i18n/index.ts';
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const d = t(lang);
+---
+<p class="hidden t-small" data-nearest-chip data-label={d.near.nearest} data-lang={lang}></p>
+<script>
+  import { loadStations, nearest, permissionGranted, position, slotOf } from '../scripts/locate.ts';
+  const el = document.querySelector<HTMLElement>('[data-nearest-chip]');
+  (async () => {
+    if (!el || !(await permissionGranted())) return;
+    try {
+      const [pos, data] = await Promise.all([position(), loadStations()]);
+      const n = nearest(data.stations, pos.coords.latitude, pos.coords.longitude);
+      if (!n || n.km > 25) return;
+      const km = n.km.toFixed(1);
+      el.innerHTML = '';
+      const chip = document.createElement('span');
+      chip.className = 'inline-flex items-center gap-2 h-8 px-3.5 rounded-full ring-1px';
+      chip.dataset.aqi = slotOf(n.station.a);
+      chip.dataset.aqiUs = slotOf(n.station.u, true);
+      chip.innerHTML = `<span class="text-[var(--color-fg-muted)]"></span><strong class="font-medium"></strong><span class="font-mono text-[var(--color-fg-subtle)]"></span><span class="sq"></span><span class="font-mono tabular"><span class="v-n"></span><span class="v-us"></span></span>`;
+      const [label, name, dist, , val] = chip.children as unknown as HTMLElement[];
+      label!.textContent = `${el.dataset.label}:`;
+      name!.textContent = n.station.p;
+      dist!.textContent = `${km} km`;
+      val!.children[0]!.textContent = String(n.station.a);
+      val!.children[1]!.textContent = String(n.station.u ?? '–');
+      el.append(chip);
+      el.classList.remove('hidden');
+    } catch {
+      /* silent: the chip is an enhancement */
+    }
+  })();
+</script>

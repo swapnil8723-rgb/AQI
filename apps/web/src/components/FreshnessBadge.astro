@@ -1,0 +1,24 @@
+---
+import { t, type Lang } from '../i18n/index.ts';
+import { freshness } from '../lib/aqi-ui.ts';
+import { istTime, relative, shortDate } from '../lib/format.ts';
+import { istDate } from '@saans/pipeline';
+
+interface Props {
+  iso: string | null;
+  lang: Lang;
+  onFill?: boolean;
+}
+const { iso, lang, onFill = false } = Astro.props;
+const d = t(lang);
+const state = freshness(iso);
+const abs = iso ? `${shortDate(istDate(iso), lang)} ${istTime(iso)} ${d.fresh.ist}` : '';
+---
+{iso && (
+  <span data-fresh class="inline-flex items-center gap-1.5 font-mono text-[12px] leading-none tracking-normal normal-case">
+    <span class="fresh-dot" data-state={state} style={onFill ? 'box-shadow:0 0 0 1.5px color-mix(in oklab, var(--aqi-on) 45%, transparent)' : undefined}></span>
+    <time datetime={iso} data-rel title={abs}>{relative(iso, lang)}</time>
+    {state === 'stale' && <span>· {d.fresh.stale}</span>}
+    <span class="sr-only">({abs})</span>
+  </span>
+)}

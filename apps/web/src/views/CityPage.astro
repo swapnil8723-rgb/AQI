@@ -1,0 +1,193 @@
+---
+/**
+ * City page (PLAN.md §5.2). Order is fixed; everything above the fold works
+ * with zero JavaScript. Shared by /aqi/{city} and /hi/aqi/{city}.
+ */
+import { CPCB_HEALTH, VERDICTS, nearbyCities, type City } from '@saans/data';
+import { POLLUTANT_LABEL, naqiCategory, type Pollutant } from '@saans/aqi';
+import { istHour } from '@saans/pipeline';
+import Base from '../layouts/Base.astro';
+import AqiHero from '../components/AqiHero.astro';
+import VerdictCard from '../components/VerdictCard.astro';
+import HourBars from '../components/HourBars.astro';
+import StationMap from '../components/StationMap.astro';
+import SourcePanel from '../components/SourcePanel.astro';
+import DaysStrip from '../components/DaysStrip.astro';
+import StationsTable from '../components/StationsTable.astro';
+import PollutantRows from '../components/PollutantRows.astro';
+import GrapSection from '../components/GrapSection.astro';
+import CityChips from '../components/CityChips.astro';
+import ShareButton, { type ShareData } from '../components/ShareButton.astro';
+import AdSlot from '../components/AdSlot.astro';
+import Faq from '../components/Faq.astro';
+import NearestChip from '../components/NearestChip.astro';
+import { t, localePath, type Lang } from '../i18n/index.ts';
+import { CATEGORY_LABEL, catLabel, freshness, slotN, slotU, usLabel } from '../lib/aqi-ui.ts';
+import { istTime, longDate, todayIst } from '../lib/format.ts';
+import { SITE } from '../lib/site.ts';
+import type { Bundle } from '../lib/bundle.ts';
+
+interface Props {
+  lang: Lang;
+  city: City;
+  bundle: Bundle | null;
+}
+const { lang, city, bundle } = Astro.props;
+const d = t(lang);
+const cb = bundle?.cities[city.slug] ?? null;
+const now = cb?.now ?? null;
+const name = lang === 'hi' ? city.hi : city.en;
+const nameAlt = lang === 'hi' ? city.en : city.hi;
+const state = freshness(now?.at);
+const live = now && state !== 'stale' ? now : null;
+const category = live ? naqiCategory(live.aqi) : null;
+const valid = cb?.stations.filter((s) => s.valid && s.aqi !== null) ?? [];
+const usVals = valid.map((s) => s.us).filter((x): x is number => x !== null);
+const usRange: [number, number] | null = usVals.length ? [Math.min(...usVals), Math.max(...usVals)] : null;
+const lastHour = cb?.hours.at(-1) ?? null;
+const axisEnd = istHour(now?.at ?? lastHour?.t ?? bundle?.generatedAt ?? Date.now());
+const worst = valid[0] ?? null;
+const cleanest = valid.length > 1 ? valid.reduce((m, s) => ((s.aqi ?? 0) < (m.aqi ?? 0) ? s : m), valid[0]!) : null;
+const dom = (ps: Pollutant[]) => ps.map((p) => POLLUTANT_LABEL[p]).join(', ');
+
+// PLAN.md §3.5: no valid data for 72 h → noindex until it recovers.
+const lastSeen = now?.at ?? lastHour?.t ?? null;
+const noindex = !city.live || !lastSeen || Date.now() - Date.parse(lastSeen) > 72 * 3600_000;
+
+const catWord = live ? catLabel(live.aqi, lang) : '';
+const title = live
+  ? lang === 'hi'
+    ? `${name} AQI आज: ${live.aqi} (${catWord}) · लाइव वायु गुणवत्ता | ${SITE.nameHi}`
+    : `${name} AQI Today: ${live.aqi} (${catWord}) · Live Air Quality | ${SITE.name}`
+  : lang === 'hi'
+    ? `${name} AQI आज · लाइव वायु गुणवत्ता | ${SITE.nameHi}`
+    : `${name} AQI Today · Live Air Quality | ${SITE.name}`;
+const bul = cb?.bulletin;
+const description = live
+  ? lang === 'hi'
+    ? `${name} की लाइव वायु गुणवत्ता: AQI ${live.aqi} (${catWord}), मुख्य प्रदूषक ${dom(live.dominant)}, ${live.valid} CPCB स्टेशन, दायरा ${live.min}–${live.max}.${bul ? ` आधिकारिक CPCB बुलेटिन: ${bul.aqi}.` : ''} हर घंटे अपडेट।`
+    : `Live air quality in ${name}: AQI ${live.aqi} (${catWord}), ${dom(live.dominant)} main pollutant, ${live.valid} CPCB stations ranging ${live.min}–${live.max}.${bul ? ` Official CPCB bulletin: ${bul.aqi}.` : ''} Updated hourly.`
+  : lang === 'hi'
+    ? `${name} की वायु गुणवत्ता: CPCB स्टेशनों का लाइव अनुमान, आधिकारिक बुलेटिन और हर स्टेशन।`
+    : `Air quality in ${name}: live estimate from CPCB stations, the official bulletin and every station.`;
+
+const origin = Astro.site?.origin ?? SITE.origin;
+const url = new URL(localePath(lang, `/aqi/${city.slug}`), origin).href;
+
+// FAQ: true, data-driven answers only (PLAN.md §5.2 item 12).
+const faq: { q: string; a: string }[] = [];
+if (live) {
+  faq.push(
+    lang === 'hi'
+      ? { q: `${name} का AQI अभी कितना है?`, a: `${istTime(live.at)} बजे ${name} का लाइव अनुमान ${live.aqi} (${catWord}) है — ${live.total} में से ${live.valid} CPCB स्टेशनों का औसत।${bul ? ` ${longDate(bul.date, lang)} के आधिकारिक CPCB बुलेटिन (शाम 4 बजे) में ${bul.aqi} (${catLabel(bul.aqi, lang)}) था।` : ''}` }
+      : { q: `What is ${name}'s AQI right now?`, a: `${name}'s live estimate is ${live.aqi} (${catWord}) at ${istTime(live.at)} IST, the average of ${live.valid} of ${live.total} CPCB stations.${bul ? ` CPCB's official 4 PM bulletin for ${longDate(bul.date, lang)} was ${bul.aqi} (${catLabel(bul.aqi, lang)}).` : ''}` },
+  );
+  if (worst && cleanest && worst.id !== cleanest.id) {
+    const top3 = valid.slice(0, 3).map((s) => `${s.place} (${s.aqi})`).join(', ');
+    faq.push(
+      lang === 'hi'
+        ? { q: `${name} के किस इलाके की हवा अभी सबसे खराब है?`, a: `सबसे ज़्यादा AQI: ${top3}। सबसे साफ़: ${cleanest.place} (${cleanest.aqi})।` }
+        : { q: `Which area of ${name} has the worst air right now?`, a: `Highest AQI: ${top3}. Cleanest: ${cleanest.place} (${cleanest.aqi}).` },
+    );
+  }
+  const p0 = live.dominant[0];
+  const pc = p0 ? live.pollutants[p0] : undefined;
+  if (p0 && pc) {
+    faq.push(
+      lang === 'hi'
+        ? { q: `${name} में आज मुख्य प्रदूषक कौन-सा है?`, a: `${POLLUTANT_LABEL[p0]} — ${name} के स्टेशनों में इसका औसत सब-इंडेक्स सबसे ऊँचा (${pc.i}) है, यानी लगभग ${pc.c} ${p0 === 'co' ? 'mg/m³' : 'µg/m³'}।` }
+        : { q: `What is the main pollutant in ${name} today?`, a: `${POLLUTANT_LABEL[p0]} has the highest average sub-index across ${name}'s stations (${pc.i}), about ${pc.c} ${p0 === 'co' ? 'mg/m³' : 'µg/m³'}.` },
+    );
+  }
+  if (category) {
+    faq.push(
+      lang === 'hi'
+        ? { q: `क्या आज ${name} में बाहर टहलना ठीक है?`, a: `${VERDICTS[category].run.hi}। CPCB के अनुसार “${CATEGORY_LABEL[category].hi}” श्रेणी का असर: ${CPCB_HEALTH[category].hi}। यह सामान्य जानकारी है, चिकित्सा सलाह नहीं।` }
+        : { q: `Is it OK to go for a walk in ${name} today?`, a: `${VERDICTS[category].run.en}. CPCB's health statement for “${CATEGORY_LABEL[category].en}”: ${CPCB_HEALTH[category].en}. General guidance, not medical advice.` },
+    );
+  }
+}
+
+const share: ShareData | null = live
+  ? {
+      city: name,
+      cityAlt: nameAlt,
+      aqi: live.aqi,
+      us: live.us,
+      cat: catWord,
+      catAlt: CATEGORY_LABEL[category!][lang === 'hi' ? 'en' : 'hi'],
+      catUs: live.us !== null ? usLabel(live.us, lang) : '',
+      slot: slotN(live.aqi),
+      slotUs: slotU(live.us),
+      main: dom(live.dominant),
+      worst: worst ? `${worst.place} ${worst.aqi}` : null,
+      cleanest: cleanest && worst && cleanest.id !== worst.id ? `${cleanest.place} ${cleanest.aqi}` : null,
+      date: `${longDate(todayIst(), lang)} · ${istTime(live.at)} IST`,
+      url,
+      brand: SITE.name,
+      live: d.hero.live,
+      text: d.share.text(name, live.aqi, catWord, url),
+      mainLabel: d.hero.main,
+      worstLabel: lang === 'hi' ? 'सबसे खराब इलाका' : 'Worst area',
+      cleanestLabel: lang === 'hi' ? 'सबसे साफ़' : 'Cleanest',
+    }
+  : null;
+
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: title,
+    description,
+    url,
+    inLanguage: d.htmlLang,
+    dateModified: bundle?.generatedAt,
+    isPartOf: { '@type': 'WebSite', name: SITE.name, url: origin },
+    about: { '@type': 'Place', name: `${city.en}, ${city.state}, India`, geo: { '@type': 'GeoCoordinates', latitude: city.lat, longitude: city.lon } },
+  },
+  {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: SITE.name, item: new URL(localePath(lang, '/'), origin).href },
+      { '@type': 'ListItem', position: 2, name: `${name} AQI`, item: url },
+    ],
+  },
+  ...(faq.length
+    ? [{ '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) }]
+    : []),
+];
+const nearby = nearbyCities(city.slug, 6);
+---
+<Base lang={lang} title={title} description={description} path={`/aqi/${city.slug}`} bundle={bundle} slot={slotN(live?.aqi)} noindex={noindex} jsonLd={jsonLd} sticky="city">
+  <div class="mx-auto max-w-[1200px] px-4 md:px-6 lg:px-8 pt-5 md:pt-8" data-city-page={city.slug} data-slot={slotN(live?.aqi)}>
+    <nav aria-label="Breadcrumb" class="t-small text-[var(--color-fg-subtle)]">
+      <a href={localePath(lang, '/')} class="hover:text-[var(--color-fg)]">{SITE.name}</a> <span aria-hidden="true">/</span> <span>{lang === 'hi' ? city.stateHi : city.state}</span>
+    </nav>
+    <div class="flex flex-wrap items-end justify-between gap-3 mt-1 mb-4 md:mb-6">
+      <h1 class="t-h1">{lang === 'hi' ? `${name} AQI आज` : `${name} AQI today`} <span class="t-h3 font-normal text-[var(--color-fg-subtle)]" lang={lang === 'hi' ? 'en' : 'hi'}>{nameAlt}</span></h1>
+      <div class="hidden lg:block"><ShareButton lang={lang} data={share} /></div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-12">
+      <div class="lg:col-span-7"><AqiHero lang={lang} name={name} now={now} bulletin={cb?.bulletin ?? null} usRange={usRange} lastHour={lastHour} /></div>
+      <div class="lg:col-span-5"><VerdictCard lang={lang} category={category} bulletinUrl={cb?.bulletin?.url} /></div>
+      <div class="lg:col-span-12"><NearestChip lang={lang} /></div>
+      {cb && cb.hours.length > 0 && <div class="lg:col-span-12"><HourBars lang={lang} hours={cb.hours} end={axisEnd} /></div>}
+      {cb && cb.stations.length > 0 && <div class="lg:col-span-7"><StationMap lang={lang} slug={city.slug} stations={cb.stations} /></div>}
+      <div class="lg:col-span-5 flex flex-col gap-4 md:gap-6">
+        <SourcePanel lang={lang} now={live} bulletin={cb?.bulletin ?? null} />
+        {cb && <DaysStrip lang={lang} days={cb.days} url={cb.bulletin?.url ?? 'https://cpcb.nic.in/aqi_report.php'} />}
+      </div>
+      {cb && cb.stations.length > 0 && <div class:list={[cb.stations.length > 8 || !live ? 'lg:col-span-12' : 'lg:col-span-7']}><StationsTable lang={lang} stations={cb.stations} /></div>}
+      {live && <div class:list={[cb && cb.stations.length > 8 ? 'lg:col-span-7' : 'lg:col-span-5']}><PollutantRows lang={lang} now={live} /></div>}
+      <div class="lg:col-span-12"><AdSlot slot="city-1" /></div>
+      {city.ncr && <div class="lg:col-span-7"><GrapSection lang={lang} /></div>}
+      <div class="lg:col-span-12"><CityChips lang={lang} cities={nearby} bundle={bundle} /></div>
+      <div class="lg:col-span-12 lg:hidden"><ShareButton lang={lang} data={share} /></div>
+      <div class="lg:col-span-12"><AdSlot slot="city-2" /></div>
+      <div class="lg:col-span-8"><Faq lang={lang} items={faq} /></div>
+    </div>
+    {share && <script type="application/json" id="share-data" set:html={JSON.stringify(share)} />}
+  </div>
+</Base>

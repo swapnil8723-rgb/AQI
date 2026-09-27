@@ -1,0 +1,31 @@
+---
+/**
+ * GRAP (DESIGN.md §4.12): neutral colours only — GRAP is policy, not air.
+ * Hidden until someone curates packages/data/src/grap.ts from a CAQM order.
+ */
+import { CAQM_URL, GRAP_STAGES, GRAP_STATUS } from '@saans/data';
+import { t, type Lang } from '../i18n/index.ts';
+import { longDate } from '../lib/format.ts';
+
+interface Props {
+  lang: Lang;
+}
+const { lang } = Astro.props;
+const d = t(lang);
+const g = GRAP_STATUS;
+---
+{g && (
+  <section class="card p-5" aria-labelledby="grap-title">
+    <h2 id="grap-title" class="t-label text-[var(--color-fg-subtle)]">{d.grap.title}</h2>
+    <p class="t-h3 mt-2">{g.stage === 0 ? d.grap.none : GRAP_STAGES[g.stage as 1 | 2 | 3 | 4][lang]}</p>
+    <ol class="grid grid-cols-4 gap-1.5 mt-3" aria-hidden="true">
+      {[1, 2, 3, 4].map((i) => <li class="h-2 rounded-full" style={i <= g.stage ? 'background:var(--color-fg)' : 'background:var(--color-bg-muted)'}></li>)}
+    </ol>
+    <p class="t-small text-[var(--color-fg-muted)] mt-3">
+      {g.stage > 0 && <>{d.grap.since} <span class="font-mono">{longDate(g.since, lang)}</span> · </>}
+      <a href={g.orderUrl || CAQM_URL} class="underline" target="_blank" rel="noopener">{d.grap.order} ↗</a>
+      <span class="text-[var(--color-fg-subtle)]"> · {d.grap.checked} {longDate(g.checked, lang)}</span>
+    </p>
+    <p class="t-small text-[var(--color-fg-subtle)] mt-2">{d.grap.note}</p>
+  </section>
+)}

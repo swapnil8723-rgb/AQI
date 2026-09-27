@@ -1,0 +1,63 @@
+---
+/**
+ * Static station map (DESIGN.md §4.17, launch version): coastline and state
+ * borders from scripts/build-map.ts, station dots as <a href="#station-…">.
+ * Zero JS to render; scripts/mapcards.ts adds the tap card.
+ */
+import { POLLUTANT_LABEL, type Pollutant } from '@saans/aqi';
+import cityMaps from '../data/city-maps.json';
+import { t, type Lang } from '../i18n/index.ts';
+import { catLabel, slotN, slotU } from '../lib/aqi-ui.ts';
+import MapCardLabels from './MapCardLabels.astro';
+import { istTime } from '../lib/format.ts';
+import { mercator, r1 } from '../lib/map.ts';
+import type { BundleStation } from '../lib/bundle.ts';
+
+interface Props {
+  lang: Lang;
+  slug: string;
+  stations: BundleStation[];
+}
+const { lang, slug, stations } = Astro.props;
+const d = t(lang);
+const m = (cityMaps as Record<string, { w: number; h: number; mercator: { k: number; tx: number; ty: number }; land: string; borders: string; scale: { km: number; px: number } }>)[slug];
+const dots = m
+  ? stations
+      .map((s) => {
+        const [x, y] = mercator(m.mercator, s.lat, s.lon);
+        return { s, x: r1(Math.min(Math.max(x, 8), m.w - 8)), y: r1(Math.min(Math.max(y, 8), m.h - 8)) };
+      })
+      // Worst on top; invalid underneath.
+      .sort((a, b) => (a.s.valid === b.s.valid ? (a.s.aqi ?? 0) - (b.s.aqi ?? 0) : a.s.valid ? 1 : -1))
+  : [];
+---
+{m && (
+  <section class="card p-5" aria-labelledby="map-title">
+    <div class="flex items-baseline justify-between gap-2">
+      <h2 id="map-title" class="t-h3">{d.map.title}</h2>
+      <p class="t-small text-[var(--color-fg-subtle)]">{d.map.tap}</p>
+    </div>
+    <div class="relative mt-3 rounded-[12px] bg-[var(--color-bg-subtle)] ring-1px overflow-hidden" data-map>
+      <svg viewBox={`0 0 ${m.w} ${m.h}`} class="block w-full h-auto max-h-[360px] md:max-h-[440px]" role="group" aria-label={d.map.title}>
+        <path d={m.land} fill="var(--color-bg)" stroke="var(--color-fg-subtle)" stroke-width="0.75" vector-effect="non-scaling-stroke" />
+        <path d={m.borders} fill="none" stroke="var(--color-ring-strong)" stroke-width="1" stroke-dasharray="4 3" vector-effect="non-scaling-stroke" />
+        {dots.map(({ s, x, y }) => (
+          <a href={`#${s.anchor}`} data-card data-n={s.place} data-v={s.valid ? (s.aqi ?? '') : ''} data-u={s.valid ? (s.us ?? '') : ''} data-s={[s.dominant.map((p: Pollutant) => POLLUTANT_LABEL[p]).join(', '), s.at ? istTime(s.at) : ''].filter(Boolean).join(' · ')} aria-label={`${s.place}, AQI ${s.valid && s.aqi !== null ? `${s.aqi}, ${catLabel(s.aqi, lang)}` : d.insufficient}`}>
+            <circle cx={x} cy={y} r="22" fill="transparent" />
+            <circle cx={x} cy={y} r={s.valid ? 9 : 6} data-aqi={slotN(s.valid ? s.aqi : null)} data-aqi-us={slotU(s.valid ? s.us : null)} class="map-dot" />
+          </a>
+        ))}
+      </svg>
+      <div class="absolute left-3 bottom-3 flex items-center gap-2 font-mono text-[11px] text-[var(--color-fg-subtle)]" aria-hidden="true">
+        <span class="block h-1.5 border-x border-b border-current" style={`width:${(m.scale.px / m.w) * 100}cqw;min-width:40px;max-width:30%`}></span>
+        <span>{d.map.scaleBar(m.scale.km)}</span>
+      </div>
+      <div class="map-card raised absolute z-10 w-[220px] p-4 hidden" data-map-card role="status"></div>
+      <MapCardLabels lang={lang} link={d.map.see} />
+    </div>
+    <p class="t-small text-[var(--color-fg-subtle)] mt-2">{d.map.attribution}</p>
+  </section>
+)}
+<script>
+  import '../scripts/mapcards.ts';
+</script>

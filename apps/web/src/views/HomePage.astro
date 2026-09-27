@@ -1,0 +1,178 @@
+---
+/**
+ * Home (PLAN.md §5.1): live India map + near me + rankings on one page.
+ * Above the fold works with zero JavaScript; location is an enhancement.
+ */
+import { CITIES, GRAP_STAGES, GRAP_STATUS } from '@saans/data';
+import { POLLUTANT_LABEL, type Pollutant } from '@saans/aqi';
+import Base from '../layouts/Base.astro';
+import IndiaMap from '../components/IndiaMap.astro';
+import HourBars from '../components/HourBars.astro';
+import AdSlot from '../components/AdSlot.astro';
+import Icon from '../components/Icon.astro';
+import { t, localePath, type Lang } from '../i18n/index.ts';
+import { catLabel, freshness, slotN, slotU, usLabel } from '../lib/aqi-ui.ts';
+import { istTime } from '../lib/format.ts';
+import { SITE } from '../lib/site.ts';
+import type { Bundle } from '../lib/bundle.ts';
+import { istHour } from '@saans/pipeline';
+
+interface Props {
+  lang: Lang;
+  bundle: Bundle | null;
+}
+const { lang, bundle } = Astro.props;
+const d = t(lang);
+const origin = Astro.site?.origin ?? SITE.origin;
+
+// Compact per-city data for the "Your city" card (≈ 3 KB).
+const cities = CITIES.filter((c) => c.live).map((c) => {
+  const now = bundle?.cities[c.slug]?.now ?? null;
+  const ok = now && freshness(now.at) !== 'stale';
+  return {
+    s: c.slug, en: c.en, hi: c.hi, la: c.lat, lo: c.lon,
+    a: ok ? now.aqi : null, u: ok ? now.us : null,
+    c: ok ? catLabel(now.aqi, lang) : null, cu: ok && now.us !== null ? usLabel(now.us, lang) : null,
+    m: ok ? now.dominant.map((p: Pollutant) => POLLUTANT_LABEL[p]).join(', ') : null,
+    v: ok ? now.valid : 0, t: ok ? now.at : null,
+  };
+});
+
+// Today's extremes across every CPCB city (PLAN.md §5.1 item 4), launch cities linked.
+const ranked = (bundle?.map ?? []).filter((m) => m.aqi !== null).sort((a, b) => b.aqi! - a.aqi!);
+const worst = ranked.slice(0, 5);
+const cleanest = ranked.slice(-5).reverse();
+const cityName = (m: { name: string; slug: string | null }) => {
+  const c = m.slug ? CITIES.find((x) => x.slug === m.slug) : null;
+  return c ? (lang === 'hi' ? c.hi : c.en) : m.name;
+};
+
+// Festival mode (PLAN.md §6): Delhi's hourly strip on the home page around Diwali (8 Nov 2026).
+const md = new Date(Date.now() + 330 * 60_000).toISOString().slice(5, 10);
+const diwali = md >= '11-06' && md <= '11-10';
+const delhi = bundle?.cities.delhi;
+
+const title = lang === 'hi' ? `AQI आज: भारत की लाइव वायु गुणवत्ता, शहर-दर-शहर | ${SITE.nameHi}` : `AQI Today: Live Air Quality in India, City by City | ${SITE.name}`;
+const description =
+  lang === 'hi'
+    ? 'अपने शहर का लाइव AQI देखें: CPCB स्टेशनों से हर घंटे का अनुमान, आधिकारिक बुलेटिन और हर स्टेशन। सबसे प्रदूषित और सबसे साफ़ शहर, लाइव नक्शे पर।'
+    : 'Live AQI for your city from CPCB stations: our hourly estimate, the official bulletin and every station, side by side. Most polluted and cleanest cities on a live India map.';
+const jsonLd = [
+  {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: SITE.name,
+    url: new URL(localePath(lang, '/'), origin).href,
+    inLanguage: d.htmlLang,
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: { '@type': 'EntryPoint', urlTemplate: `${new URL(localePath(lang, '/search'), origin).href}?q={q}` },
+      'query-input': 'required name=q',
+    },
+  },
+];
+const TOP = ['delhi', 'mumbai', 'bengaluru', 'kolkata', 'chennai', 'hyderabad', 'pune', 'lucknow'];
+---
+<Base lang={lang} title={title} description={description} path="/" bundle={bundle} jsonLd={jsonLd} sticky="home">
+  <div class="mx-auto max-w-[1200px] px-4 md:px-6 lg:px-8 pt-8 md:pt-12 grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-10">
+    <div class="lg:col-span-5">
+      <h1 class="t-display">{d.home.title}</h1>
+      <p class="t-body-lg text-[var(--color-fg-muted)] mt-4">{d.home.lede}</p>
+
+      <div class="mt-6 flex flex-col sm:flex-row gap-2" id="near">
+        <button type="button" class="btn btn-primary" data-locate-trigger data-locate-main>
+          <Icon name="crosshair" size={16} />
+          <span data-locate-label>{d.near.use}</span>
+        </button>
+        <form action={localePath(lang, '/search')} method="get" role="search" class="flex-1 flex gap-2">
+          <label for="home-q" class="sr-only">{d.nav.search}</label>
+          <input id="home-q" name="q" class="input" placeholder={d.nav.search} autocomplete="off" list="city-list" />
+          <datalist id="city-list">{CITIES.filter((c) => c.live).map((c) => <option value={lang === 'hi' ? c.hi : c.en} />)}</datalist>
+        </form>
+      </div>
+      <p class="t-small text-[var(--color-fg-subtle)] mt-2" data-locate-note>{d.near.privacy}</p>
+
+      {/* "Your city" (PLAN.md §5.1 item 2): filled by script; zero-JS fallback lists the big cities. */}
+      <section class="card p-5 mt-6" aria-labelledby="your-city" data-your-city>
+        <h2 id="your-city" class="t-label text-[var(--color-fg-subtle)]">{d.home.yourCity}</h2>
+        <div data-your-city-body>
+          <p class="t-h3 mt-2">{d.home.pick}</p>
+          <ul class="flex flex-wrap gap-2 mt-3">
+            {TOP.map((s) => {
+              const c = cities.find((x) => x.s === s)!;
+              return (
+                <li>
+                  <a href={localePath(lang, `/aqi/${s}`)} class="inline-flex items-center gap-2 h-8 px-3 rounded-full ring-1px text-[14px] hover:bg-[var(--color-bg-muted)]" data-aqi={slotN(c.a)} data-aqi-us={slotU(c.u)}>
+                    {lang === 'hi' ? c.hi : c.en} <span class="sq"></span><span class="font-mono tabular"><span class="v-n">{c.a ?? '–'}</span><span class="v-us">{c.u ?? '–'}</span></span>
+                  </a>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </section>
+
+      <div class="grid grid-cols-2 gap-6 mt-8">
+        {[
+          { title: d.home.worst, list: worst },
+          { title: d.home.cleanest, list: cleanest },
+        ].map((col) => (
+          <section aria-label={col.title}>
+            <h2 class="t-label text-[var(--color-fg-subtle)]">{col.title}</h2>
+            <ol class="mt-2 space-y-1">
+              {col.list.map((m) => (
+                <li class="flex items-center gap-2 min-h-9 t-small" data-aqi={slotN(m.aqi)}>
+                  <span class="sq"></span>
+                  {m.slug ? (
+                    <a href={localePath(lang, `/aqi/${m.slug}`)} class="flex-1 truncate underline underline-offset-2 decoration-[var(--color-ring-strong)] hover:decoration-current">{cityName(m)}</a>
+                  ) : (
+                    <span class="flex-1 truncate text-[var(--color-fg-muted)]" title={m.state}>{cityName(m)}</span>
+                  )}
+                  <span class="font-mono tabular">{m.aqi}</span>
+                </li>
+              ))}
+            </ol>
+          </section>
+        ))}
+      </div>
+      <p class="t-small text-[var(--color-fg-subtle)] mt-3">{d.home.rankNote}</p>
+    </div>
+
+    <div class="lg:col-span-7">
+      <div class="flex items-baseline justify-between mb-3">
+        <h2 class="t-h3">{d.home.map}</h2>
+        {bundle?.feedAt && <p class="t-small font-mono text-[var(--color-fg-subtle)]">{istTime(bundle.feedAt)} IST</p>}
+      </div>
+      <IndiaMap lang={lang} bundle={bundle} />
+    </div>
+
+    {GRAP_STATUS && GRAP_STATUS.stage > 0 && (
+      <section class="lg:col-span-12 card p-5 flex flex-wrap items-center gap-3">
+        <p class="t-label text-[var(--color-fg-subtle)]">{d.grap.title}</p>
+        <p class="font-semibold">{GRAP_STAGES[GRAP_STATUS.stage as 1 | 2 | 3 | 4][lang]}</p>
+        <a href={GRAP_STATUS.orderUrl} class="t-small underline ml-auto" target="_blank" rel="noopener">{d.grap.order} ↗</a>
+      </section>
+    )}
+    {diwali && delhi && delhi.hours.length > 0 && (
+      <div class="lg:col-span-12">
+        <p class="t-label text-[var(--color-fg-subtle)] mb-2">{d.home.delhiNight}</p>
+        <HourBars lang={lang} hours={delhi.hours} end={istHour(delhi.now?.at ?? delhi.hours.at(-1)!.t)} />
+      </div>
+    )}
+
+    <div class="lg:col-span-12"><AdSlot slot="home-1" /></div>
+
+    <section class="lg:col-span-12 card p-6 md:p-8 grid md:grid-cols-[1fr_auto] gap-4 items-center">
+      <div>
+        <h2 class="t-h2">{d.home.teaserTitle}</h2>
+        <p class="text-[var(--color-fg-muted)] mt-2 max-w-[640px]">{d.home.teaser}</p>
+      </div>
+      <a href={localePath(lang, '/aqi-explained')} class="btn btn-secondary">{d.home.teaserLink} →</a>
+    </section>
+  </div>
+
+  <script type="application/json" id="home-cities" set:html={JSON.stringify({ cities, t: { live: d.hero.live, details: d.home.details, approx: d.near.approx('%s'), nearest: d.near.nearest, far: d.near.far('%k', '%n'), unavailable: d.near.unavailable, finding: d.near.finding, use: d.near.use, open: d.near.open('%s'), base: localePath(lang, '/aqi/'), insufficient: d.insufficient } })} />
+  <script>
+    import '../scripts/home.ts';
+  </script>
+</Base>

@@ -1,0 +1,7 @@
+---
+import NotFound from '../views/NotFound.astro';
+import { getBundle } from '../lib/bundle.ts';
+const bundle = await getBundle();
+const lang = Astro.url.pathname.startsWith('/hi/') ? 'hi' : 'en';
+---
+<NotFound lang={lang} bundle={bundle} />

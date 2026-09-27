@@ -1,0 +1,53 @@
+{
+  "name": "saans",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "workspaces": [
+    "packages/*",
+    "workers/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @saans/web",
+    "build": "npm run build -w @saans/web",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "check": "npm run typecheck && npm run typecheck -w @saans/ingest && npm run check -w @saans/web",
+    "gate": "node scripts/gate.ts",
+    "fixture": "node scripts/fixture.ts",
+    "map": "node scripts/build-map.ts",
+    "deploy:ingest": "npm run deploy -w @saans/ingest",
+    "deploy:web": "npm run deploy -w @saans/web",
+    "smoke": "node scripts/smoke.ts",
+    "backfill": "node scripts/backfill-bulletins.ts",
+    "push": "node scripts/push-snapshot.ts",
+    "seed": "npm run seed -w @saans/web"
+  },
+  "allowScripts": {
+    "esbuild": true,
+    "workerd": true,
+    "sharp": false
+  },
+  "devDependencies": {
+    "@types/d3-geo": "^3.1.1",
+    "@types/geojson": "^7946.0.16",
+    "@types/node": "^24.0.0",
+    "@types/topojson-client": "^3.1.5",
+    "@types/topojson-server": "^3.0.4",
+    "@types/topojson-simplify": "^3.0.3",
+    "d3-geo": "^3.1.1",
+    "hyparquet": "^1.31.2",
+    "hyparquet-compressors": "^1.1.2",
+    "shapefile": "^0.6.6",
+    "topojson-client": "^3.1.0",
+    "topojson-server": "^3.0.1",
+    "topojson-simplify": "^3.0.3",
+    "typescript": "^6.0.3",
+    "unpdf": "^1.8.1",
+    "vitest": "^5.0.2"
+  }
+}

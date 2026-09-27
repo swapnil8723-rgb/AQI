@@ -1,0 +1,40 @@
+---
+/** Pollutant breakdown (DESIGN.md §4.7): name · value · band bar · category. */
+import { POLLUTANT_LABEL, POLLUTANT_UNIT, naqiBand, type Pollutant } from '@saans/aqi';
+import { t, type Lang } from '../i18n/index.ts';
+import { catLabel, slotN } from '../lib/aqi-ui.ts';
+import type { CityNow } from '../lib/bundle.ts';
+
+interface Props {
+  lang: Lang;
+  now: CityNow;
+}
+const { lang, now } = Astro.props;
+const d = t(lang);
+const ORDER: Pollutant[] = ['pm25', 'pm10', 'no2', 'o3', 'co', 'so2', 'nh3'];
+const rows = ORDER.filter((p) => now.pollutants[p]).map((p) => {
+  const x = now.pollutants[p]!;
+  const [lo, hi] = naqiBand(x.i);
+  return { p, ...x, pos: Math.max(4, Math.min(100, ((x.i - lo) / (hi - lo || 1)) * 100)) };
+});
+const fmt = (p: Pollutant, c: number) => (p === 'co' ? c.toFixed(2) : c >= 100 ? c.toFixed(0) : c.toFixed(1));
+---
+<section class="card p-5" aria-labelledby="pollutants-title">
+  <h2 id="pollutants-title" class="t-h3">{d.pollutants.title}</h2>
+  <ul class="mt-2">
+    {rows.map((r) => (
+      <li class="grid grid-cols-[64px_1fr_auto] sm:grid-cols-[72px_1fr_120px_110px] items-center gap-x-4 min-h-14 hairline-b last:shadow-none" data-aqi={slotN(r.i)}>
+        <span class="t-label">{POLLUTANT_LABEL[r.p]}</span>
+        <span class="font-mono tabular">
+          <span class="text-[20px] leading-none">{fmt(r.p, r.c)}</span>
+          <span class="t-small text-[var(--color-fg-subtle)] ml-1">{POLLUTANT_UNIT[r.p]}</span>
+        </span>
+        <span class="hidden sm:block h-1.5 rounded-full bg-[var(--color-bg-muted)] overflow-hidden" title={`${d.pollutants.subIndex} ${r.i}`}>
+          <span class="block h-full rounded-full" style={`width:${r.pos}%;background:var(--aqi-fill)`}></span>
+        </span>
+        <span class="t-small font-medium text-right" style="color:var(--aqi-ink)">{catLabel(r.i, lang)} <span class="font-mono text-[var(--color-fg-subtle)] font-normal">· {r.i}</span></span>
+      </li>
+    ))}
+  </ul>
+  <p class="t-small text-[var(--color-fg-subtle)] mt-3">{d.pollutants.note}</p>
+</section>

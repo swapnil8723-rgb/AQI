@@ -1,0 +1,6 @@
+---
+import HomePage from '../views/HomePage.astro';
+import { getBundle } from '../lib/bundle.ts';
+const bundle = await getBundle();
+---
+<HomePage lang="en" bundle={bundle} />

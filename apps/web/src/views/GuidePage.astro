@@ -1,0 +1,213 @@
+---
+/**
+ * /aqi-explained (PLAN.md §4 template 3): one strong guide instead of five
+ * thin articles. Every example number is computed by @saans/aqi at render
+ * time, so the guide can never disagree with the site.
+ */
+import { CPCB_HEALTH } from '@saans/data';
+import { naqiSubIndex, usAqi, usSubIndex, type Pollutant } from '@saans/aqi';
+import Base from '../layouts/Base.astro';
+import Calculator from '../components/Calculator.astro';
+import { t, localePath, type Lang } from '../i18n/index.ts';
+import { CATEGORY_LABEL, NAQI_ROWS, US_LABEL, US_ROWS, catLabel, slotN, usLabel } from '../lib/aqi-ui.ts';
+import { relative } from '../lib/format.ts';
+import { SITE } from '../lib/site.ts';
+import type { Bundle } from '../lib/bundle.ts';
+
+interface Props {
+  lang: Lang;
+  bundle: Bundle | null;
+  calc: Partial<Record<Pollutant, number>>;
+}
+const { lang, bundle, calc } = Astro.props;
+const d = t(lang);
+const hi = lang === 'hi';
+const delhi = bundle?.cities.delhi?.now ?? null;
+
+// Worked examples, computed.
+const ex60 = { n: Math.round(naqiSubIndex('pm25', 60)!), u: usSubIndex('pm25', 60)! };
+const ex150 = { n: Math.round(naqiSubIndex('pm25', 150)!), u: usSubIndex('pm25', 150)! };
+const ex25 = { n: Math.round(naqiSubIndex('pm25', 25)!), u: usSubIndex('pm25', 25)! };
+const exCity = usAqi({ pm25: 90, pm10: 180 })!;
+
+const toc = hi
+  ? [['full-form', 'AQI का पूरा नाम'], ['categories', 'छह श्रेणियाँ'], ['how', 'AQI कैसे निकलता है'], ['calculator', 'कैलकुलेटर'], ['pm', 'PM2.5 और PM10'], ['naqi-vs-us', 'भारत बनाम अमेरिकी पैमाना'], ['disagree', 'ऐप अलग नंबर क्यों दिखाते हैं'], ['labels', 'आधिकारिक बनाम लाइव अनुमान']]
+  : [['full-form', 'AQI full form'], ['categories', 'The six categories'], ['how', 'How AQI is calculated'], ['calculator', 'Calculator'], ['pm', 'PM2.5 vs PM10'], ['naqi-vs-us', 'India vs US scale'], ['disagree', 'Why apps disagree'], ['labels', 'Official vs live estimate']];
+
+const title = hi ? `AQI क्या है? पूरा नाम, श्रेणियाँ, PM2.5 और भारत बनाम US AQI | ${SITE.nameHi}` : `AQI Explained: Full Form, Categories, PM2.5 and India vs US AQI | ${SITE.name}`;
+const description = hi
+  ? 'AQI का पूरा नाम, CPCB की छह श्रेणियाँ और उनका स्वास्थ्य पर असर, PM2.5 और PM10 का फ़र्क, AQI कैसे निकलता है, और अलग-अलग ऐप अलग नंबर क्यों दिखाते हैं। मुफ़्त AQI कैलकुलेटर के साथ।'
+  : 'AQI full form and meaning, CPCB’s six categories and their health impact, PM2.5 vs PM10, how AQI is calculated, and why apps show different numbers. With a free AQI calculator.';
+const origin = Astro.site?.origin ?? SITE.origin;
+const jsonLd = [
+  { '@context': 'https://schema.org', '@type': 'Article', headline: title, description, inLanguage: d.htmlLang, url: new URL(localePath(lang, '/aqi-explained'), origin).href, dateModified: '2026-09-27', author: { '@type': 'Organization', name: SITE.name }, publisher: { '@type': 'Organization', name: SITE.name } },
+];
+---
+<Base lang={lang} title={title} description={description} path="/aqi-explained" bundle={bundle} jsonLd={jsonLd}>
+  <div class="mx-auto max-w-[1200px] px-4 md:px-6 lg:px-8 py-10 md:py-16 grid grid-cols-1 gap-10 lg:grid-cols-[200px_minmax(0,680px)_240px] lg:justify-between">
+    <nav class="hidden lg:block" aria-label={hi ? 'इस पेज पर' : 'On this page'}>
+      <div class="sticky top-24">
+        <p class="t-label text-[var(--color-fg-subtle)]">{hi ? 'इस पेज पर' : 'On this page'}</p>
+        <ol class="mt-3 space-y-2 t-small">{toc.map(([id, label]) => <li><a href={`#${id}`} class="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">{label}</a></li>)}</ol>
+      </div>
+    </nav>
+
+    <article class="prose">
+      <p class="t-label text-[var(--color-fg-subtle)] not-prose">{d.footer.guide}</p>
+      <h1 class="t-h1 mt-2">{hi ? 'AQI को आसान भाषा में समझें' : 'AQI, explained properly'}</h1>
+      <p class="t-body-lg mt-4">{hi
+        ? 'एक नंबर जो बताता है कि आज की हवा कितनी साफ़ या गंदी है — और क्यों अलग-अलग ऐप पर वह नंबर अलग होता है।'
+        : 'One number that says how clean or dirty today’s air is — and why that number is different on every app.'}</p>
+
+      {hi ? (
+        <>
+          <h2 id="full-form" class="t-h2">AQI का पूरा नाम</h2>
+          <p>AQI का पूरा नाम <strong>एयर क्वालिटी इंडेक्स</strong> (वायु गुणवत्ता सूचकांक) है। यह हवा में मौजूद कई प्रदूषकों की मात्रा को 0 से 500 के एक नंबर में बदल देता है, ताकि बिना विज्ञान पढ़े समझा जा सके कि हवा कितनी सुरक्षित है। नंबर जितना ऊँचा, हवा उतनी खराब।</p>
+          <p>भारत में केंद्रीय प्रदूषण नियंत्रण बोर्ड (CPCB) का <strong>राष्ट्रीय वायु गुणवत्ता सूचकांक (NAQI)</strong> चलता है, जो 2014 में शुरू हुआ। इसमें आठ प्रदूषक गिने जा सकते हैं: PM2.5, PM10, NO₂, SO₂, CO, O₃, NH₃ और सीसा। CPCB के लाइव स्टेशन पहले सात मापते हैं।</p>
+        </>
+      ) : (
+        <>
+          <h2 id="full-form" class="t-h2">AQI full form</h2>
+          <p>AQI stands for <strong>Air Quality Index</strong>. It turns the amounts of several pollutants in the air into one number from 0 to 500, so you can tell how safe the air is without reading a lab report. The higher the number, the worse the air.</p>
+          <p>India uses the Central Pollution Control Board’s <strong>National Air Quality Index (NAQI)</strong>, launched in 2014. It can include eight pollutants: PM2.5, PM10, NO₂, SO₂, CO, O₃, NH₃ and lead. CPCB’s live stations measure the first seven.</p>
+        </>
+      )}
+
+      <h2 id="categories" class="t-h2">{hi ? 'छह श्रेणियाँ और उनका असर' : 'The six categories and what they mean'}</h2>
+      <p>{hi ? 'CPCB हर श्रेणी के साथ एक स्वास्थ्य कथन देता है। ये शब्द CPCB के दैनिक बुलेटिन से हैं:' : 'CPCB attaches a health statement to each category. These words are CPCB’s own, from its daily bulletin:'}</p>
+      <div class="not-prose card overflow-hidden my-6">
+        <table class="w-full t-small">
+          <thead class="bg-[var(--color-bg-subtle)] hairline-b"><tr class="text-left">
+            <th scope="col" class="t-label font-medium text-[var(--color-fg-subtle)] px-4 py-2.5">AQI</th>
+            <th scope="col" class="t-label font-medium text-[var(--color-fg-subtle)] px-4 py-2.5">{hi ? 'श्रेणी' : 'Category'}</th>
+            <th scope="col" class="t-label font-medium text-[var(--color-fg-subtle)] px-4 py-2.5">{hi ? 'संभावित असर (CPCB)' : 'Possible health impact (CPCB)'}</th>
+          </tr></thead>
+          <tbody>{NAQI_ROWS.map((r) => (
+            <tr class="hairline-b last:shadow-none" data-aqi={r.cat}>
+              <td class="px-4 py-3 font-mono tabular whitespace-nowrap"><span class="inline-flex items-center gap-2"><span class="sq"></span>{r.range}</span></td>
+              <td class="px-4 py-3 font-semibold whitespace-nowrap" style="color:var(--aqi-ink)">{CATEGORY_LABEL[r.cat][lang]}</td>
+              <td class="px-4 py-3 text-[var(--color-fg-muted)]">{CPCB_HEALTH[r.cat][lang]}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
+
+      {hi ? (
+        <>
+          <h2 id="how" class="t-h2">AQI कैसे निकलता है</h2>
+          <ol>
+            <li><strong>हर प्रदूषक का सब-इंडेक्स।</strong> हर प्रदूषक की सांद्रता को CPCB की तालिका से 0–500 के पैमाने पर बदला जाता है। उदाहरण: PM2.5 का 24 घंटे का औसत 60 µg/m³ हो तो उसका सब-इंडेक्स {ex60.n} है।</li>
+            <li><strong>सबसे ऊँचा सब-इंडेक्स ही AQI।</strong> स्टेशन का AQI उसके सबसे ऊँचे सब-इंडेक्स के बराबर होता है, और वही प्रदूषक “मुख्य प्रदूषक” कहलाता है। औसत नहीं लिया जाता।</li>
+            <li><strong>पर्याप्त डेटा ज़रूरी।</strong> कम से कम तीन प्रदूषक चाहिए, जिनमें PM2.5 या PM10 में से एक हो। वरना AQI नहीं निकाला जाता।</li>
+            <li><strong>औसत की अवधि।</strong> PM2.5, PM10, NO₂, SO₂ और NH₃ के लिए 24 घंटे का औसत; CO और O₃ के लिए 8 घंटे का सबसे ऊँचा औसत। इसलिए AQI धीरे-धीरे बदलता है।</li>
+            <li><strong>शहर का AQI।</strong> जिस शहर में कई स्टेशन हैं, वहाँ CPCB स्टेशनों के AQI का औसत लेता है। CPCB खुद लिखता है कि यह वैज्ञानिक रूप से पूरी तरह सही तरीका नहीं है, पर सरलता के लिए अपनाया गया है। इसीलिए हम हर स्टेशन और पूरा दायरा भी दिखाते हैं।</li>
+          </ol>
+        </>
+      ) : (
+        <>
+          <h2 id="how" class="t-h2">How AQI is calculated</h2>
+          <ol>
+            <li><strong>A sub-index for each pollutant.</strong> Each pollutant’s concentration is mapped onto the 0–500 scale with CPCB’s breakpoint table. Example: a 24-hour PM2.5 average of 60 µg/m³ has a sub-index of {ex60.n}.</li>
+            <li><strong>The highest sub-index is the AQI.</strong> A station’s AQI is its highest sub-index, and that pollutant is the “main pollutant”. Nothing is averaged at this step.</li>
+            <li><strong>Enough data first.</strong> At least three pollutants are needed, one of them PM2.5 or PM10. Otherwise there is no AQI.</li>
+            <li><strong>Averaging windows.</strong> 24-hour averages for PM2.5, PM10, NO₂, SO₂ and NH₃; the highest 8-hour average for CO and O₃. That is why AQI moves slowly.</li>
+            <li><strong>The city number.</strong> For a city with several stations, CPCB averages the station AQIs. CPCB itself notes this is not scientifically sound but is used for simplicity — which is why we also show every station and the full range.</li>
+          </ol>
+        </>
+      )}
+      <div class="my-8"><Calculator lang={lang} values={calc} /></div>
+
+      {hi ? (
+        <>
+          <h2 id="pm" class="t-h2">PM2.5 और PM10 में फ़र्क</h2>
+          <p><strong>PM10</strong> वे कण हैं जिनका व्यास 10 माइक्रोमीटर या कम है — धूल, निर्माण की मिट्टी, सड़क की धूल। <strong>PM2.5</strong> उनमें से भी बारीक कण हैं, 2.5 माइक्रोमीटर या कम — धुआँ, वाहनों और पराली जलाने से। PM2.5 इतने छोटे होते हैं कि फेफड़ों में गहराई तक और खून तक पहुँच सकते हैं, इसलिए इनकी सीमा सख़्त है: PM2.5 के लिए 60 µg/m³ पर ही AQI {Math.round(naqiSubIndex('pm25', 60)!)} हो जाता है, जबकि PM10 के लिए 100 µg/m³ पर।</p>
+          <p>हर PM2.5 कण PM10 में भी गिना जाता है, इसलिए एक ही जगह PM2.5 की मात्रा PM10 से ज़्यादा नहीं हो सकती। अगर किसी स्टेशन पर ऐसा दिखे, तो हम उसे जाँच के लिए चिह्नित करते हैं।</p>
+        </>
+      ) : (
+        <>
+          <h2 id="pm" class="t-h2">PM2.5 vs PM10</h2>
+          <p><strong>PM10</strong> is particles 10 micrometres across or smaller — dust, construction soil, road dust. <strong>PM2.5</strong> is the finer part of that, 2.5 micrometres or smaller — smoke from vehicles, stubble and wood fires. PM2.5 is small enough to go deep into the lungs and into the blood, so its limits are stricter: 60 µg/m³ of PM2.5 already scores {Math.round(naqiSubIndex('pm25', 60)!)}, the same as 100 µg/m³ of PM10.</p>
+          <p>Every PM2.5 particle is also counted in PM10, so at one place PM2.5 can never exceed PM10. When a station shows that, we flag it for review.</p>
+        </>
+      )}
+
+      <h2 id="naqi-vs-us" class="t-h2">{hi ? 'भारत का AQI बनाम अमेरिकी AQI' : 'India’s AQI vs the US AQI'}</h2>
+      <p>{hi
+        ? 'कई अंतरराष्ट्रीय ऐप अमेरिकी EPA का पैमाना दिखाते हैं। दोनों 0–500 के हैं, पर एक ही हवा पर अलग नंबर देते हैं, क्योंकि अमेरिकी पैमाना PM2.5 पर कहीं ज़्यादा सख़्त है:'
+        : 'Many international apps show the US EPA scale. Both run from 0 to 500, but they give different numbers for the same air, because the US scale is far stricter on PM2.5:'}</p>
+      <div class="not-prose card overflow-hidden my-6">
+        <table class="w-full t-small">
+          <thead class="bg-[var(--color-bg-subtle)] hairline-b"><tr class="text-left">
+            <th scope="col" class="t-label font-medium text-[var(--color-fg-subtle)] px-4 py-2.5">{hi ? 'PM2.5, 24 घंटे' : 'PM2.5, 24 h'}</th>
+            <th scope="col" class="t-label font-medium text-[var(--color-fg-subtle)] px-4 py-2.5">{hi ? 'भारत (NAQI)' : 'India (NAQI)'}</th>
+            <th scope="col" class="t-label font-medium text-[var(--color-fg-subtle)] px-4 py-2.5">{hi ? 'अमेरिका (EPA)' : 'US (EPA)'}</th>
+          </tr></thead>
+          <tbody class="font-mono tabular">
+            {[[25, ex25], [60, ex60], [150, ex150]].map(([c, e]) => {
+              const x = e as { n: number; u: number };
+              return (
+                <tr class="hairline-b last:shadow-none">
+                  <td class="px-4 py-3">{c as number} µg/m³</td>
+                  <td class="px-4 py-3">{x.n} · <span class="font-sans">{catLabel(x.n, lang)}</span></td>
+                  <td class="px-4 py-3">{x.u} · <span class="font-sans">{usLabel(x.u, lang)}</span></td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p>{hi
+        ? `अमेरिकी पैमाने की श्रेणियाँ भी अलग हैं: ${US_ROWS.map((r) => `${r.range} ${US_LABEL[r.cat].hi}`).join(', ')}। मई 2024 में EPA ने PM2.5 की “अच्छा” सीमा 12 से घटाकर 9 µg/m³ कर दी।`
+        : `The US categories differ too: ${US_ROWS.map((r) => `${r.range} ${US_LABEL[r.cat].en}`).join(', ')}. In May 2024 the EPA lowered the PM2.5 “Good” limit from 12 to 9 µg/m³.`}</p>
+      <p>{hi
+        ? `इस साइट पर NAQI | US बटन से आप दोनों देख सकते हैं। अमेरिकी मान हम उन्हीं CPCB आँकड़ों से निकालते हैं, सिर्फ़ PM2.5, PM10 (24 घंटे), O₃ और CO (8 घंटे) से — क्योंकि EPA NO₂ और SO₂ को 1 घंटे के मान पर आँकता है और CPCB के ये 24 घंटे के औसत हैं। उदाहरण: PM2.5 90 और PM10 180 µg/m³ वाली हवा अमेरिकी पैमाने पर ${exCity.aqi} है।`
+        : `On this site the NAQI | US switch shows both. We compute the US value from the same CPCB data, using only PM2.5 and PM10 (24 h) and O₃ and CO (8 h) — the EPA scores NO₂ and SO₂ on 1-hour values, and CPCB’s are 24-hour averages. Example: air with 90 µg/m³ PM2.5 and 180 µg/m³ PM10 is ${exCity.aqi} on the US scale.`}</p>
+
+      {hi ? (
+        <>
+          <h2 id="disagree" class="t-h2">अलग-अलग ऐप अलग नंबर क्यों दिखाते हैं</h2>
+          <ul>
+            <li><strong>पैमाना।</strong> ऊपर देखें: एक ही हवा भारत के पैमाने पर 100 और अमेरिकी पर 150 से ऊपर हो सकती है।</li>
+            <li><strong>स्टेशन।</strong> कोई ऐप शहर के सारे स्टेशनों का औसत लेता है, कोई सबसे पास वाले स्टेशन का नंबर, कोई किसी एक “प्रतिनिधि” स्टेशन का।</li>
+            <li><strong>सेंसर।</strong> CPCB के स्टेशन मानक उपकरणों वाले निगरानी केंद्र हैं। कई ऐप सस्ते सेंसर भी जोड़ते हैं, जो नमी और धूल में अलग पढ़ते हैं।</li>
+            <li><strong>समय और औसत।</strong> CPCB 24 घंटे का औसत लेता है; कुछ ऐप “अभी” का घंटे भर का मान या NowCast दिखाते हैं, जो तेज़ी से ऊपर-नीचे होता है।</li>
+            <li><strong>बुलेटिन बनाम लाइव।</strong> CPCB का आधिकारिक शहर AQI रोज़ शाम 4 बजे एक बार आता है। उसके बाद के घंटों में हवा बदल जाती है।</li>
+          </ul>
+        </>
+      ) : (
+        <>
+          <h2 id="disagree" class="t-h2">Why apps show different numbers</h2>
+          <ul>
+            <li><strong>The scale.</strong> See above: the same air can be 100 on India’s scale and over 150 on the US scale.</li>
+            <li><strong>The stations.</strong> One app averages every station in the city, another shows the nearest station, another picks one “representative” station.</li>
+            <li><strong>The sensors.</strong> CPCB’s stations are reference-grade monitoring sites. Many apps add low-cost sensors, which read differently in humidity and dust.</li>
+            <li><strong>The time window.</strong> CPCB uses 24-hour averages; some apps show a one-hour “right now” value or a NowCast, which jumps around much more.</li>
+            <li><strong>Bulletin vs live.</strong> CPCB’s official city AQI is published once a day at 4 PM. The air changes in the hours after it.</li>
+          </ul>
+        </>
+      )}
+
+      <h2 id="labels" class="t-h2">{hi ? 'इस साइट पर: आधिकारिक बनाम लाइव अनुमान' : 'On this site: official vs live estimate'}</h2>
+      <p>{hi
+        ? 'हर शहर के पेज पर तीन नंबर अलग-अलग दिखते हैं, ताकि कुछ भी गड्डमड्ड न हो:'
+        : 'Every city page keeps three numbers apart, so nothing is blurred together:'}</p>
+      <ul>
+        <li><strong>{hi ? 'आधिकारिक CPCB बुलेटिन' : 'Official CPCB bulletin'}</strong> — {hi ? 'CPCB का शाम 4 बजे का शहर AQI, जैसा प्रकाशित हुआ, बिना बदले। “आधिकारिक” शब्द सिर्फ़ इसी के लिए है।' : 'CPCB’s 4 PM city AQI, exactly as published. The word “official” is used for this number only.'}</li>
+        <li><strong>{hi ? 'लाइव अनुमान' : 'Live estimate'}</strong> — {hi ? 'हमारा हर घंटे का शहर मान, CPCB के ही स्टेशनों और CPCB के ही तरीके से। 20 और 23 सितंबर 2026 को 4 बजे का हमारा अनुमान 97% शहरों में बुलेटिन से 10% के भीतर था।' : 'our hourly city value, from CPCB’s own stations with CPCB’s own method. On 20 and 23 Sep 2026, our 4 PM estimate was within 10% of the bulletin for 97% of cities.'}</li>
+        <li><strong>{hi ? 'स्टेशन' : 'Stations'}</strong> — {hi ? 'हर स्टेशन का अपना AQI, सबसे कम से सबसे ज़्यादा तक।' : 'each station’s own AQI, lowest to highest.'}</li>
+      </ul>
+      <p><a href={`${localePath(lang, '/about')}#methodology`}>{d.source.methodology} →</a></p>
+    </article>
+
+    <aside class="hidden lg:block" aria-label={hi ? 'दिल्ली अभी' : 'Delhi right now'}>
+      {delhi && (
+        <a href={localePath(lang, '/aqi/delhi')} class="sticky top-24 block rounded-[12px] p-5" data-aqi={slotN(delhi.aqi)} style="background:var(--aqi-fill);color:var(--aqi-on)">
+          <p class="t-label">{hi ? 'दिल्ली' : 'Delhi'} · {d.hero.live}</p>
+          <p class="font-mono tabular text-[56px] leading-none font-semibold mt-3">{delhi.aqi}</p>
+          <p class="t-small font-medium mt-1">{catLabel(delhi.aqi, lang)}</p>
+          <p class="t-small mt-3 opacity-80">{relative(delhi.at, lang)} →</p>
+        </a>
+      )}
+    </aside>
+  </div>
+</Base>

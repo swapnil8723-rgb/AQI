@@ -1,0 +1,20 @@
+---
+/** Lucide icons (ISC), inlined at build time — no icon JS. DESIGN.md §4.5: stroke 1.5. */
+// Options stay on one line: Vite's dependency scanner misreads a line that starts with "import:".
+const icons = import.meta.glob<string>('/node_modules/lucide-static/icons/{footprints,baby,app-window,wind,shield,crosshair,search,moon,sun,share-2,map-pin,arrow-up-right,info,chevron-down}.svg', { query: '?raw', import: 'default', eager: true });
+
+interface Props {
+  name: string;
+  size?: number;
+  class?: string;
+}
+const { name, size = 20, class: cls = '' } = Astro.props;
+const raw = Object.entries(icons).find(([k]) => k.endsWith(`/${name}.svg`))?.[1] ?? '';
+const svg = raw
+  .replace(/<!--.*?-->/s, '')
+  .replace(/\s(width|height)="24"/g, ` $1="${size}"`)
+  .replace('stroke-width="2"', 'stroke-width="1.5"')
+  .replace(/class="[^"]*"/, `class="${cls}" aria-hidden="true" focusable="false"`)
+  .trim();
+---
+<Fragment set:html={svg} />

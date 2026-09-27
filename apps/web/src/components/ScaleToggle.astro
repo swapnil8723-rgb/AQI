@@ -1,0 +1,20 @@
+---
+import { t, type Lang } from '../i18n/index.ts';
+interface Props {
+  lang: Lang;
+  severe?: boolean;
+}
+const { lang, severe = false } = Astro.props;
+const d = t(lang);
+---
+{/* Hidden until JS runs (it needs JS to work). DESIGN.md §4.4. */}
+<div role="group" aria-label={d.scale.label} class="scale-toggle inline-flex h-7 p-0.5 rounded-[6px] font-mono text-[12px] font-medium" data-js-only hidden data-severe={severe ? '' : undefined}>
+  <button type="button" data-scale-btn="naqi" aria-pressed="true" class="px-2 rounded-[4px]">{d.scale.naqi}</button>
+  <button type="button" data-scale-btn="us" aria-pressed="false" class="px-2 rounded-[4px]" title={d.scale.usNote}>{d.scale.us}</button>
+</div>
+<style>
+  .scale-toggle { box-shadow: 0 0 0 1px color-mix(in oklab, var(--aqi-on, var(--color-fg)) 16%, transparent); }
+  .scale-toggle button { color: inherit; opacity: .8; transition: background-color 150ms var(--ease-out); }
+  .scale-toggle button[aria-pressed='true'] { background: rgba(255, 255, 255, 0.9); color: #171717; opacity: 1; }
+  .scale-toggle[data-severe] button[aria-pressed='true'] { background: rgba(0, 0, 0, 0.25); color: #fff; }
+</style>

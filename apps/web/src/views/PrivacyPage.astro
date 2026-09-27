@@ -1,0 +1,71 @@
+---
+/** /privacy — privacy, terms and disclaimer on one page (PLAN.md §4 template 4, §5.3 C). */
+import Base from '../layouts/Base.astro';
+import { t, type Lang } from '../i18n/index.ts';
+import { SITE } from '../lib/site.ts';
+import type { Bundle } from '../lib/bundle.ts';
+
+interface Props {
+  lang: Lang;
+  bundle: Bundle | null;
+}
+const { lang, bundle } = Astro.props;
+const d = t(lang);
+const hi = lang === 'hi';
+const title = hi ? `गोपनीयता और शर्तें | ${SITE.nameHi}` : `Privacy & Terms | ${SITE.name}`;
+const description = hi ? 'आपकी लोकेशन आपके फ़ोन पर ही रहती है। हम क्या सहेजते हैं, क्या नहीं, और इस साइट की शर्तें।' : 'Your location stays on your phone. What we store, what we don’t, and the terms of this site.';
+---
+<Base lang={lang} title={title} description={description} path="/privacy" bundle={bundle}>
+  <article class="mx-auto max-w-[1200px] px-4 md:px-6 lg:px-8 py-10 md:py-16">
+    <div class="prose">
+      <p class="t-label text-[var(--color-fg-subtle)]">{d.footer.privacy}</p>
+      <h1 class="t-h1 mt-2">{hi ? 'गोपनीयता और शर्तें' : 'Privacy & terms'}</h1>
+      <p class="t-small text-[var(--color-fg-subtle)]">{hi ? 'अपडेट: 27 सितंबर 2026' : 'Updated 27 September 2026'}</p>
+      {hi ? (
+        <>
+          <h2 class="t-h2">लोकेशन</h2>
+          <ul>
+            <li><strong>आपकी सटीक लोकेशन आपके फ़ोन से बाहर नहीं जाती।</strong> “मेरी लोकेशन” दबाने पर आपका ब्राउज़र सभी स्टेशनों की सूची लेता है और सबसे पास का स्टेशन वहीं, आपके फ़ोन पर, ढूँढता है।</li>
+            <li>हम लोकेशन की अनुमति कभी अपने-आप नहीं माँगते — सिर्फ़ जब आप बटन दबाएँ।</li>
+            <li>पहली बार आने पर हम आपके इंटरनेट पते (IP) से अंदाज़न शहर बताते हैं। यह जानकारी सिर्फ़ उसी जवाब के लिए इस्तेमाल होती है; हम इसे न लॉग करते हैं, न सहेजते हैं।</li>
+          </ul>
+          <h2 class="t-h2">आपके ब्राउज़र में क्या सहेजा जाता है</h2>
+          <p>सिर्फ़ चार छोटी सेटिंग्स, आपके ही ब्राउज़र में (localStorage): थीम (हल्का/गहरा), पैमाना (NAQI/US), आपका चुना शहर, और उस शहर का रंग। कोई खाता नहीं, कोई नाम या फ़ोन नंबर नहीं। हम अपनी ओर से कोई कुकी नहीं लगाते।</p>
+          <h2 class="t-h2">एनालिटिक्स और विज्ञापन</h2>
+          <p>हम Cloudflare Web Analytics इस्तेमाल कर सकते हैं, जो कुकी के बिना कुल विज़िट गिनता है। अगर हम Google AdSense विज्ञापन दिखाते हैं, तो Google कुकी इस्तेमाल कर सकता है; इसकी जानकारी Google की नीति में है: <a href="https://policies.google.com/technologies/ads" rel="noopener" target="_blank">policies.google.com/technologies/ads</a>। अगर किसी लिंक से हमें कमीशन मिलता है, तो वह लिंक के पास साफ़ लिखा होगा।</p>
+          <h2 class="t-h2">शर्तें और अस्वीकरण</h2>
+          <ul>
+            <li>आँकड़े CPCB के लाइव डेटा से हैं, जो <strong>अस्थायी और अप्रमाणित</strong> होता है। CPCB बाद में इन्हें सुधार सकता है।</li>
+            <li>“आधिकारिक” शब्द सिर्फ़ CPCB के बुलेटिन वाले नंबर के लिए है। हमारा हर घंटे का अनुमान आधिकारिक नहीं है।</li>
+            <li>“आज क्या करें” कार्ड CPCB के स्वास्थ्य कथनों पर आधारित सामान्य जानकारी है, <strong>चिकित्सा सलाह नहीं</strong>। अस्थमा, हृदय या फेफड़ों की बीमारी हो तो अपने डॉक्टर से पूछें।</li>
+            <li>साइट “जैसी है” उपलब्ध है; डेटा में देरी या गलती से होने वाले नुकसान की ज़िम्मेदारी हमारी नहीं।</li>
+          </ul>
+          <h2 class="t-h2">संपर्क</h2>
+          <p><a href={`mailto:${SITE.contact}`}>{SITE.contact}</a></p>
+        </>
+      ) : (
+        <>
+          <h2 class="t-h2">Location</h2>
+          <ul>
+            <li><strong>Your precise location never leaves your phone.</strong> When you tap “Use my location”, your browser downloads the list of all stations and finds the nearest one on your device.</li>
+            <li>We never ask for location on page load — only when you tap the button.</li>
+            <li>On a first visit we suggest an approximate city from your IP address. That is used only to answer that one request; we do not log or store it.</li>
+          </ul>
+          <h2 class="t-h2">What your browser keeps</h2>
+          <p>Four small settings, in your own browser (localStorage): theme (light/dark), scale (NAQI/US), the city you chose, and that city’s colour. No accounts, no names, no phone numbers. We set no cookies of our own.</p>
+          <h2 class="t-h2">Analytics and ads</h2>
+          <p>We may use Cloudflare Web Analytics, which counts visits without cookies. If we show Google AdSense ads, Google may use cookies; see Google’s policy at <a href="https://policies.google.com/technologies/ads" rel="noopener" target="_blank">policies.google.com/technologies/ads</a>. If a link earns us a commission, it will say so next to the link.</p>
+          <h2 class="t-h2">Terms and disclaimer</h2>
+          <ul>
+            <li>Figures come from CPCB’s live data, which is <strong>provisional and unvalidated</strong>. CPCB may correct it later.</li>
+            <li>The word “official” refers only to CPCB’s bulletin value. Our hourly estimate is not official.</li>
+            <li>The “What to do today” card is general guidance based on CPCB’s health statements, <strong>not medical advice</strong>. If you have asthma, heart or lung disease, ask your doctor.</li>
+            <li>The site is provided as is; we are not liable for losses caused by delayed or incorrect data.</li>
+          </ul>
+          <h2 class="t-h2">Contact</h2>
+          <p><a href={`mailto:${SITE.contact}`}>{SITE.contact}</a></p>
+        </>
+      )}
+    </div>
+  </article>
+</Base>

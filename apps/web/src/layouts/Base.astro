@@ -1,0 +1,153 @@
+---
+import '@fontsource-variable/geist/wght.css';
+import '@fontsource-variable/geist-mono/wght.css';
+import geistLatin from '@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url';
+import deva400 from '@fontsource/noto-sans-devanagari/files/noto-sans-devanagari-devanagari-400-normal.woff2?url';
+import deva600 from '@fontsource/noto-sans-devanagari/files/noto-sans-devanagari-devanagari-600-normal.woff2?url';
+import '../styles/app.css';
+import { CITIES } from '@saans/data';
+import Nav from '../components/Nav.astro';
+import Footer from '../components/Footer.astro';
+import SearchPalette from '../components/SearchPalette.astro';
+import { t, localePath, type Lang } from '../i18n/index.ts';
+import { SITE } from '../lib/site.ts';
+import type { Bundle } from '../lib/bundle.ts';
+import type { SlotName } from '../lib/aqi-ui.ts';
+import { freshness } from '../lib/aqi-ui.ts';
+import { env } from 'cloudflare:workers';
+
+interface Props {
+  lang: Lang;
+  title: string;
+  description: string;
+  /** Language-neutral path, e.g. "/aqi/delhi". */
+  path: string;
+  bundle: Bundle | null;
+  /** Colour of the living dot (the city on this page). */
+  slot?: SlotName;
+  noindex?: boolean;
+  jsonLd?: unknown[];
+  /** Content for the mobile sticky bar. */
+  sticky?: 'city' | 'home' | 'none';
+}
+
+const { lang, title, description, path, bundle, slot = 'none', noindex = false, jsonLd = [], sticky = 'none' } = Astro.props;
+const d = t(lang);
+const origin = Astro.site?.origin ?? SITE.origin;
+const canonical = new URL(localePath(lang, path), origin).href;
+const enUrl = new URL(localePath('en', path), origin).href;
+const hiUrl = new URL(localePath('hi', path), origin).href;
+const ogImage = new URL('/og.png', origin).href;
+
+const FILL: Record<SlotName, string> = {
+  good: '#00B050', satisfactory: '#92D050', moderate: '#FFE600', poor: '#FF9900', verypoor: '#FF0000', severe: '#A50021', none: '#FFFFFF',
+};
+const favicon = (fill: string) =>
+  `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#171717"/><circle cx="16" cy="16" r="8" fill="${fill}"/></svg>`)}`;
+
+const feedState = bundle ? freshness(bundle.feedAt) : 'stale';
+// Devanagari: the system copy first. Android (most of our readers) ships Noto
+// Sans Devanagari, so it downloads nothing; iOS and Windows get the self-hosted
+// file. unicode-range keeps Latin-only text from ever fetching it.
+const DEVA_RANGE = 'U+0900-097F,U+1CD0-1CF9,U+200C-200D,U+20B9,U+25CC,U+A830-A839,U+A8E0-A8FF';
+const devaFaces = [
+  [400, deva400, "local('Noto Sans Devanagari'),local('NotoSansDevanagari-Regular'),local('Noto Sans Devanagari Regular')"],
+  [600, deva600, "local('Noto Sans Devanagari SemiBold'),local('NotoSansDevanagari-SemiBold')"],
+]
+  .map(([w, url, local]) => `@font-face{font-family:'Noto Sans Devanagari';font-style:normal;font-weight:${w};font-display:swap;src:${local},url(${url}) format('woff2');unicode-range:${DEVA_RANGE}}`)
+  .join('');
+// Palette index: launch cities with their live value, embedded (≈ 3 KB) so search needs no request.
+const searchIndex = CITIES.filter((c) => c.live).map((c) => ({
+  s: c.slug, en: c.en, hi: c.hi, st: lang === 'hi' ? c.stateHi : c.state, a: c.aliases,
+  q: bundle?.cities[c.slug]?.now?.aqi ?? null, u: bundle?.cities[c.slug]?.now?.us ?? null,
+}));
+const vars = env as { CF_BEACON_TOKEN?: string; ADSENSE_CLIENT?: string };
+const cfToken = vars.CF_BEACON_TOKEN;
+const adsense = vars.ADSENSE_CLIENT;
+---
+<!doctype html>
+<html lang={lang} data-lang={lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="alternate" hreflang="en-IN" href={enUrl} />
+    <link rel="alternate" hreflang="hi-IN" href={hiUrl} />
+    <link rel="alternate" hreflang="x-default" href={enUrl} />
+    {noindex && <meta name="robots" content="noindex" />}
+    <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0A0A0A" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" href={favicon(FILL[slot])} type="image/svg+xml" data-living-icon />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="preload" href={geistLatin} as="font" type="font/woff2" crossorigin />
+    <style set:html={devaFaces}></style>
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={lang === 'hi' ? SITE.nameHi : SITE.name} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:locale" content={d.ogLocale} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    {/* Theme and scale before first paint; storage can throw (private mode), so guard it. */}
+    <script is:inline>
+      (function(){try{var d=document.documentElement,t=localStorage.getItem('theme');if(t==='dark'||t==='light')d.dataset.theme=t;if(localStorage.getItem('scale')==='us')d.dataset.scale='us';}catch(e){}})();
+    </script>
+    {jsonLd.map((j) => <script type="application/ld+json" set:html={JSON.stringify(j)} />)}
+    {adsense && <script async src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsense}`} crossorigin="anonymous"></script>}
+  </head>
+  <body class="min-h-dvh flex flex-col">
+    <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 btn btn-primary">Skip to content</a>
+    {bundle?.fixture && (
+      <div class="t-label text-center py-1.5" style="background:var(--color-fg);color:var(--color-bg)">{d.dev.fixture} · {bundle.fixture.builtFrom.slice(0, 16)}Z</div>
+    )}
+    <Nav lang={lang} path={path} slot={slot} />
+    {bundle && feedState === 'stale' && (
+      <div class="hairline-b bg-[var(--color-bg-subtle)]">
+        <p class="mx-auto max-w-[1200px] px-4 md:px-8 py-2 t-small text-[var(--color-fg-muted)]">{d.stale.banner}</p>
+      </div>
+    )}
+    <main id="main" class="flex-1">
+      <slot />
+    </main>
+    <Footer lang={lang} bundle={bundle} />
+    {sticky !== 'none' && (
+      <div class="lg:hidden h-14" aria-hidden="true"></div>
+      <nav
+        class="lg:hidden fixed inset-x-0 bottom-0 z-40 h-14 px-4 flex items-center gap-2 hairline-t backdrop-blur-md"
+        style="background:color-mix(in oklab, var(--color-bg) 92%, transparent)"
+        aria-label={d.near.short}
+        data-sticky
+      >
+        {sticky === 'city' ? (
+          <>
+            <button type="button" class="btn btn-primary flex-1" data-share-trigger>{d.share.button}</button>
+            <a href={`${localePath(lang, '/')}#near`} class="btn btn-secondary" data-near-link>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+              {d.near.short}
+            </a>
+          </>
+        ) : (
+          <>
+            <button type="button" class="btn btn-primary flex-1" data-locate-trigger>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+              {d.near.short}
+            </button>
+            <button type="button" class="btn btn-secondary" data-search-open aria-label={d.nav.searchShort}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+            </button>
+          </>
+        )}
+      </nav>
+    )}
+    <SearchPalette lang={lang} index={searchIndex} />
+    <script>
+      import '../scripts/core.ts';
+    </script>
+    {cfToken && <script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon={JSON.stringify({ token: cfToken })}></script>}
+  </body>
+</html>

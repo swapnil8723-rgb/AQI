@@ -1,0 +1,22 @@
+---
+import { CITIES } from '@saans/data';
+import Base from '../layouts/Base.astro';
+import CityChips from '../components/CityChips.astro';
+import { t, type Lang } from '../i18n/index.ts';
+import type { Bundle } from '../lib/bundle.ts';
+
+interface Props {
+  lang: Lang;
+  bundle: Bundle | null;
+}
+const { lang, bundle } = Astro.props;
+const d = t(lang);
+---
+<Base lang={lang} title={`${d.notFound.title} · Saans`} description={d.notFound.body} path="/404" bundle={bundle} noindex>
+  <div class="mx-auto max-w-[1200px] px-4 md:px-6 lg:px-8 py-16">
+    <p class="t-label text-[var(--color-fg-subtle)]">404</p>
+    <h1 class="t-h1 mt-2">{d.notFound.title}</h1>
+    <p class="mt-3 text-[var(--color-fg-muted)]">{d.notFound.body}</p>
+    <div class="mt-6"><CityChips lang={lang} cities={CITIES.filter((c) => c.live)} bundle={bundle} title={d.home.allCities} /></div>
+  </div>
+</Base>

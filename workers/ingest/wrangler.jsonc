@@ -1,0 +1,49 @@
+/**
+ * saans-ingest — the archive and data pipeline (PLAN.md §3).
+ * Deployed separately from the website so a broken site deploy can never stop
+ * the hourly archive. Needs Workers Paid ($5/month): parsing ~3,300 feed rows
+ * and a 14-page bulletin PDF takes far more than the free plan's 10 ms CPU.
+ *
+ * One-time setup (README.md → "Deploy"):
+ *   npx wrangler d1 create saans            → paste database_id below
+ *   npx wrangler kv namespace create KV     → paste id below (and in apps/web/wrangler.jsonc)
+ *   npx wrangler r2 bucket create saans-archive
+ *   npx wrangler secret put DATA_GOV_IN_KEY
+ *   npx wrangler secret put INGEST_TOKEN
+ *   npx wrangler secret put TELEGRAM_BOT_TOKEN   (optional)
+ *   npx wrangler secret put TELEGRAM_CHAT_ID     (optional)
+ *   npm run migrate:remote && npm run deploy
+ */
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "saans-ingest",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "triggers": {
+    "crons": [
+      // Hourly feed at :20 — CPCB refreshes on the hour; :20 gives it time to publish.
+      "20 * * * *",
+      // 4 PM bulletin: 17:15 IST, retried hourly until 21:15 IST (11:45–15:45 UTC).
+      "45 11-15 * * *",
+      // Yesterday's archive dump at 00:30 IST (19:00 UTC).
+      "0 19 * * *"
+    ]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "saans",
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "kv_namespaces": [{ "binding": "KV", "id": "REPLACE_WITH_KV_NAMESPACE_ID" }],
+  "r2_buckets": [{ "binding": "ARCHIVE", "bucket_name": "saans-archive" }],
+  "vars": {
+    // Sent in the User-Agent to data.gov.in and CPCB so they can reach us.
+    "CONTACT_EMAIL": "support@risescribe.com"
+  },
+  "limits": { "cpu_ms": 60000 },
+  "observability": { "enabled": true }
+}

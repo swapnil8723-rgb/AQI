@@ -1,0 +1,22 @@
+{
+  "name": "@saans/ingest",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "wrangler dev --test-scheduled",
+    "deploy": "wrangler deploy",
+    "migrate:local": "wrangler d1 migrations apply saans --local",
+    "migrate:remote": "wrangler d1 migrations apply saans --remote",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@saans/data": "*",
+    "@saans/pipeline": "*",
+    "unpdf": "^1.8.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260926.1",
+    "wrangler": "^4.141.0"
+  }
+}

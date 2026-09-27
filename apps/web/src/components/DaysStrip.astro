@@ -1,0 +1,53 @@
+---
+/** "Last 30 days" (PLAN.md §5.2 item 5b): official CPCB daily values, backfilled from the bulletin PDFs. */
+import { addDays } from '@saans/pipeline';
+import { t, type Lang } from '../i18n/index.ts';
+import { catLabel, slotN } from '../lib/aqi-ui.ts';
+import { shortDate, todayIst } from '../lib/format.ts';
+import type { DayPoint } from '../lib/bundle.ts';
+
+interface Props {
+  lang: Lang;
+  days: DayPoint[];
+  url: string;
+}
+const { lang, days, url } = Astro.props;
+const d = t(lang);
+const last = days.at(-1)?.d ?? todayIst();
+const cells = Array.from({ length: 30 }, (_, i) => {
+  const date = addDays(last, i - 29);
+  return { date, v: days.find((x) => x.d === date)?.aqi ?? null };
+});
+const have = cells.filter((c) => c.v !== null) as { date: string; v: number }[];
+const worst = have.reduce<{ date: string; v: number } | null>((m, c) => (!m || c.v > m.v ? c : m), null);
+const best = have.reduce<{ date: string; v: number } | null>((m, c) => (!m || c.v < m.v ? c : m), null);
+---
+{have.length > 0 && (
+  <section class="card p-5" aria-labelledby="days-title">
+    <div class="flex flex-wrap items-baseline justify-between gap-2">
+      <h2 id="days-title" class="t-h3">{d.days.title}</h2>
+      <p class="t-small text-[var(--color-fg-muted)]">
+        {worst && <>{d.days.worst}: <span class="font-mono tabular">{worst.v}</span> ({shortDate(worst.date, lang)})</>}
+        {best && <> · {d.days.best}: <span class="font-mono tabular">{best.v}</span> ({shortDate(best.date, lang)})</>}
+      </p>
+    </div>
+    <ol class="mt-4 grid grid-cols-[repeat(15,1fr)] sm:grid-cols-[repeat(30,1fr)] gap-1" aria-hidden="true">
+      {cells.map((c) => (
+        <li
+          class="h-7 rounded-[3px]"
+          data-aqi={c.v === null ? 'none' : slotN(c.v)}
+          style={c.v === null ? 'background:var(--color-bg-muted);box-shadow:var(--shadow-ring)' : 'background:var(--aqi-fill)'}
+          title={`${shortDate(c.date, lang)}: ${c.v === null ? d.days.none : `${c.v} (${catLabel(c.v, lang)})`}`}
+        ></li>
+      ))}
+    </ol>
+    <div class="flex justify-between mt-1.5 font-mono text-[11px] text-[var(--color-fg-subtle)]" aria-hidden="true">
+      <span>{shortDate(cells[0]!.date, lang)}</span><span>{shortDate(last, lang)}</span>
+    </div>
+    <table class="sr-only">
+      <caption>{d.days.title}</caption>
+      <tbody>{have.map((c) => <tr><th scope="row">{shortDate(c.date, lang)}</th><td>{c.v} {catLabel(c.v, lang)}</td></tr>)}</tbody>
+    </table>
+    <p class="t-small text-[var(--color-fg-subtle)] mt-3">{d.days.note} <a href={url} class="underline" target="_blank" rel="noopener">CPCB ↗</a></p>
+  </section>
+)}

@@ -1,0 +1,205 @@
+@import "tailwindcss";
+
+/* ── Tokens: DESIGN.md §2.3, verbatim values. Do not add colours here. ── */
+@theme {
+  --font-sans: "Geist Variable", "Noto Sans Devanagari", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-deva: "Noto Sans Devanagari", "Geist Variable", sans-serif;
+
+  --color-bg: #FFFFFF;        --color-bg-subtle: #FAFAFA;   --color-bg-muted: #F2F2F2;
+  --color-fg: #171717;        --color-fg-muted: #4D4D4D;    --color-fg-subtle: #666666;
+  --color-link: #0070F3;
+  --color-ring: rgba(0,0,0,0.08);
+  --color-ring-strong: rgba(0,0,0,0.16);
+
+  --color-good: #00B050;         --color-good-ink: #00754A;
+  --color-satisfactory: #92D050; --color-satisfactory-ink: #4D7A12;
+  --color-moderate: #FFE600;     --color-moderate-ink: #7A5E00;
+  --color-poor: #FF9900;         --color-poor-ink: #9A4D00;
+  --color-verypoor: #FF0000;     --color-verypoor-ink: #C00000;
+  --color-severe: #A50021;       --color-severe-ink: #8C0000;
+  --color-nodata: #E5E5E5;
+
+  --radius-sm: 6px;  --radius-md: 8px;  --radius-lg: 12px;
+
+  --shadow-ring:   0 0 0 1px rgba(0,0,0,0.08);
+  --shadow-card:   0 0 0 1px rgba(0,0,0,0.08), 0 2px 2px rgba(0,0,0,0.04);
+  --shadow-raised: 0 0 0 1px rgba(0,0,0,0.08), 0 4px 8px -2px rgba(0,0,0,0.06), 0 12px 24px -8px rgba(0,0,0,0.08);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --breakpoint-sm: 40rem;
+  --breakpoint-md: 48rem;
+  --breakpoint-lg: 64rem;
+  --breakpoint-xl: 80rem;
+}
+
+/* Dark mode: system preference unless the user chose light; explicit data-theme wins. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg:#0A0A0A; --color-bg-subtle:#111111; --color-bg-muted:#1A1A1A;
+    --color-fg:#EDEDED; --color-fg-muted:#A1A1A1; --color-fg-subtle:#8F8F8F; --color-link:#52A8FF;
+    --color-ring:rgba(255,255,255,0.10); --color-ring-strong:rgba(255,255,255,0.18);
+    --color-good-ink:#3DDC84; --color-satisfactory-ink:#A8E063; --color-moderate-ink:#FFE14D;
+    --color-poor-ink:#FFB347; --color-verypoor-ink:#FF6B6B; --color-severe-ink:#FF8A8A;
+    --color-nodata:#262626;
+    --shadow-ring:0 0 0 1px rgba(255,255,255,0.10);
+    --shadow-card:0 0 0 1px rgba(255,255,255,0.10);
+    --shadow-raised:0 0 0 1px rgba(255,255,255,0.12), 0 12px 24px -8px rgba(0,0,0,0.6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --color-bg:#0A0A0A; --color-bg-subtle:#111111; --color-bg-muted:#1A1A1A;
+  --color-fg:#EDEDED; --color-fg-muted:#A1A1A1; --color-fg-subtle:#8F8F8F; --color-link:#52A8FF;
+  --color-ring:rgba(255,255,255,0.10); --color-ring-strong:rgba(255,255,255,0.18);
+  --color-good-ink:#3DDC84; --color-satisfactory-ink:#A8E063; --color-moderate-ink:#FFE14D;
+  --color-poor-ink:#FFB347; --color-verypoor-ink:#FF6B6B; --color-severe-ink:#FF8A8A;
+  --color-nodata:#262626;
+  --shadow-ring:0 0 0 1px rgba(255,255,255,0.10);
+  --shadow-card:0 0 0 1px rgba(255,255,255,0.10);
+  --shadow-raised:0 0 0 1px rgba(255,255,255,0.12), 0 12px 24px -8px rgba(0,0,0,0.6);
+  color-scheme: dark;
+}
+:root[data-theme="light"] { color-scheme: light; }
+
+/*
+ * Category colour slots. A component sets the category once; children read
+ * --aqi-fill / --aqi-on / --aqi-ink. `data-aqi` is the NAQI category;
+ * `data-aqi-us` is the US EPA category mapped onto the same six slots, and
+ * wins when the scale toggle is on US (DESIGN.md §2.2: never mix scales).
+ */
+[data-aqi="good"]         { --aqi-fill: var(--color-good);         --aqi-on:#0A0A0A; --aqi-ink: var(--color-good-ink); }
+[data-aqi="satisfactory"] { --aqi-fill: var(--color-satisfactory); --aqi-on:#0A0A0A; --aqi-ink: var(--color-satisfactory-ink); }
+[data-aqi="moderate"]     { --aqi-fill: var(--color-moderate);     --aqi-on:#0A0A0A; --aqi-ink: var(--color-moderate-ink); }
+[data-aqi="poor"]         { --aqi-fill: var(--color-poor);         --aqi-on:#0A0A0A; --aqi-ink: var(--color-poor-ink); }
+[data-aqi="verypoor"]     { --aqi-fill: var(--color-verypoor);     --aqi-on:#0A0A0A; --aqi-ink: var(--color-verypoor-ink); }
+[data-aqi="severe"]       { --aqi-fill: var(--color-severe);       --aqi-on:#FFFFFF; --aqi-ink: var(--color-severe-ink); }
+[data-aqi="none"]         { --aqi-fill: var(--color-nodata);       --aqi-on: var(--color-fg-muted); --aqi-ink: var(--color-fg-subtle); }
+:root[data-scale="us"] [data-aqi-us="good"]         { --aqi-fill: var(--color-good);         --aqi-on:#0A0A0A; --aqi-ink: var(--color-good-ink); }
+:root[data-scale="us"] [data-aqi-us="satisfactory"] { --aqi-fill: var(--color-satisfactory); --aqi-on:#0A0A0A; --aqi-ink: var(--color-satisfactory-ink); }
+:root[data-scale="us"] [data-aqi-us="moderate"]     { --aqi-fill: var(--color-moderate);     --aqi-on:#0A0A0A; --aqi-ink: var(--color-moderate-ink); }
+:root[data-scale="us"] [data-aqi-us="poor"]         { --aqi-fill: var(--color-poor);         --aqi-on:#0A0A0A; --aqi-ink: var(--color-poor-ink); }
+:root[data-scale="us"] [data-aqi-us="verypoor"]     { --aqi-fill: var(--color-verypoor);     --aqi-on:#0A0A0A; --aqi-ink: var(--color-verypoor-ink); }
+:root[data-scale="us"] [data-aqi-us="severe"]       { --aqi-fill: var(--color-severe);       --aqi-on:#FFFFFF; --aqi-ink: var(--color-severe-ink); }
+:root[data-scale="us"] [data-aqi-us="none"]         { --aqi-fill: var(--color-nodata);       --aqi-on: var(--color-fg-muted); --aqi-ink: var(--color-fg-subtle); }
+
+/* Values rendered for both scales; the toggle shows one. */
+.v-us { display: none; }
+:root[data-scale="us"] .v-us { display: revert; }
+:root[data-scale="us"] .v-n { display: none; }
+
+/* ── Base ── */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body {
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  font-synthesis-weight: none;
+  text-rendering: optimizeLegibility;
+}
+.tabular { font-variant-numeric: tabular-nums; }
+::selection { background: color-mix(in oklab, var(--color-link) 25%, transparent); }
+:focus-visible { outline: 2px solid var(--color-link); outline-offset: 2px; border-radius: 4px; }
+a { color: inherit; text-underline-offset: 3px; }
+
+/* ── Type scale (DESIGN.md §3) ── */
+.t-hero   { font-size: clamp(96px, 22vw, 168px); line-height: .9;  letter-spacing: -0.06em; font-weight: 600; font-variant-numeric: tabular-nums; }
+.t-display{ font-size: clamp(36px, 6vw, 56px);   line-height: 1.05; letter-spacing: -0.045em; font-weight: 600; }
+.t-h1     { font-size: clamp(30px, 4.5vw, 44px); line-height: 1.1;  letter-spacing: -0.04em; font-weight: 600; }
+.t-h2     { font-size: clamp(22px, 3vw, 28px);   line-height: 1.2;  letter-spacing: -0.03em; font-weight: 600; }
+.t-h3     { font-size: 18px; line-height: 1.35; letter-spacing: -0.02em; font-weight: 600; }
+.t-body-lg{ font-size: 18px; line-height: 1.6;  letter-spacing: -0.01em; }
+.t-small  { font-size: 14px; line-height: 1.5; }
+.t-label  { font-family: var(--font-mono); font-size: 12px; line-height: 1.3; letter-spacing: .04em; font-weight: 500; text-transform: uppercase; }
+
+/* ── Devanagari rules (critical, DESIGN.md §3) ── */
+:lang(hi) { letter-spacing: 0 !important; }
+:lang(hi) body, body:lang(hi) { line-height: 1.75; }
+:lang(hi) .t-display { font-size: clamp(32px, 5.4vw, 50px); line-height: 1.2; }
+:lang(hi) .t-h1 { font-size: clamp(27px, 4vw, 40px); line-height: 1.25; }
+:lang(hi) .t-h2 { font-size: clamp(20px, 2.7vw, 25px); line-height: 1.35; }
+:lang(hi) .t-h3 { font-size: 17px; line-height: 1.5; }
+:lang(hi) .t-body-lg { line-height: 1.75; }
+:lang(hi) .t-small { line-height: 1.65; }
+/* Mono labels in Hindi: Devanagari has no uppercase and needs its own face. */
+:lang(hi) .t-label { font-family: var(--font-deva); text-transform: none; font-size: 13px; }
+.deva { font-family: var(--font-deva); letter-spacing: 0 !important; }
+
+/* ── Surfaces (DESIGN.md §6: shadow-as-border) ── */
+.ring-1px  { box-shadow: var(--shadow-ring); }
+.card      { background: var(--color-bg); box-shadow: var(--shadow-card); border-radius: var(--radius-md); }
+.raised    { background: var(--color-bg); box-shadow: var(--shadow-raised); border-radius: var(--radius-md); }
+.hairline-b { box-shadow: inset 0 -1px 0 var(--color-ring); }
+.hairline-t { box-shadow: inset 0 1px 0 var(--color-ring); }
+
+/* ── Controls (DESIGN.md §4.10, §4.14) ── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 40px; padding: 0 16px; border-radius: var(--radius-sm);
+  font-weight: 500; font-size: 14px; white-space: nowrap; cursor: pointer;
+  transition: opacity 150ms var(--ease-out), box-shadow 150ms var(--ease-out), background-color 150ms var(--ease-out);
+  position: relative;
+}
+.btn::after { content: ""; position: absolute; inset: -2px; min-height: 44px; min-width: 44px; } /* 44px hit area */
+.btn-primary { background: var(--color-fg); color: var(--color-bg); }
+.btn-primary:hover { opacity: .88; }
+.btn-secondary { background: var(--color-bg); color: var(--color-fg); box-shadow: var(--shadow-ring); }
+.btn-secondary:hover { box-shadow: 0 0 0 1px var(--color-ring-strong); background: var(--color-bg-subtle); }
+.btn-ghost { background: transparent; color: var(--color-fg); }
+.btn-ghost:hover { background: var(--color-bg-muted); }
+.btn[disabled] { opacity: .6; cursor: progress; }
+.input {
+  height: 40px; width: 100%; border-radius: var(--radius-sm); padding: 0 12px;
+  background: var(--color-bg-subtle); box-shadow: var(--shadow-ring); color: var(--color-fg);
+  font-size: 16px; outline: none;
+}
+.input::placeholder { color: var(--color-fg-subtle); }
+.input:focus { box-shadow: var(--shadow-ring), 0 0 0 3px color-mix(in oklab, var(--color-link) 35%, transparent); }
+.kbd { font-family: var(--font-mono); font-size: 11px; padding: 1px 6px; border-radius: 4px; box-shadow: var(--shadow-ring); color: var(--color-fg-subtle); }
+
+/* Category square / pill */
+.sq { display: inline-block; width: 10px; height: 10px; border-radius: 2px; background: var(--aqi-fill); flex: none; }
+.pill { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 9999px; background: var(--aqi-fill); color: var(--aqi-on); font-size: 13px; font-weight: 500; }
+
+/* Freshness dot (DESIGN.md §4.3) */
+.fresh-dot { width: 6px; height: 6px; border-radius: 9999px; display: inline-block; flex: none; }
+.fresh-dot[data-state="fresh"] { background: var(--color-good); animation: pulse 2s var(--ease-out) infinite; }
+.fresh-dot[data-state="delayed"] { background: var(--color-poor); }
+.fresh-dot[data-state="stale"] { background: var(--color-fg-subtle); }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+
+/* Map dots (IndiaMap, StationMap): styled here so each dot carries no inline style. */
+[data-map] { container-type: inline-size; }
+[data-map] a { outline: none; }
+.map-dot { fill: var(--aqi-fill); stroke: var(--color-bg); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.map-dot.thin { stroke-width: 1; }
+.ctx-dot { fill: var(--aqi-fill); opacity: .85; }
+.severe-ring { fill: none; stroke: var(--color-severe); stroke-opacity: .3; stroke-width: 3; vector-effect: non-scaling-stroke; }
+[data-map] a:focus-visible .map-dot, [data-map] a[aria-current] .map-dot { stroke: var(--color-fg); stroke-width: 4; }
+
+/* Horizontal chip scrollers keep their scrollbar (DESIGN.md §4.9: discoverable) */
+.chips { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 6px; }
+.chips > * { scroll-snap-align: start; flex: none; }
+
+/* Prose for the guide and static pages */
+.prose { max-width: 680px; }
+.prose h2 { margin-top: 56px; margin-bottom: 12px; }
+.prose h3 { margin-top: 32px; margin-bottom: 8px; }
+.prose p, .prose ul, .prose ol, .prose table { margin-bottom: 16px; }
+.prose ul { list-style: disc; padding-left: 20px; }
+.prose ol { list-style: decimal; padding-left: 20px; }
+.prose li { margin-bottom: 6px; }
+.prose a { color: var(--color-link); text-decoration: underline; }
+.prose p, .prose li { color: var(--color-fg-muted); }
+.prose strong { color: var(--color-fg); font-weight: 600; }
+.prose code { font-family: var(--font-mono); font-size: .9em; background: var(--color-bg-muted); padding: 1px 5px; border-radius: 4px; }
+
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

@@ -1,0 +1,6 @@
+---
+import AboutPage from '../../views/AboutPage.astro';
+import { getBundle } from '../../lib/bundle.ts';
+const bundle = await getBundle();
+---
+<AboutPage lang="hi" bundle={bundle} />

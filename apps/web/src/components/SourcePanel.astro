@@ -1,0 +1,87 @@
+---
+/**
+ * "Where this number comes from" (DESIGN.md §4.14a) — the signature
+ * component. An audit trail, not a marketing box: native <details>, works
+ * with JS off, CPCB data only, no third-party numbers.
+ */
+import { t, localePath, type Lang } from '../i18n/index.ts';
+import { slotN } from '../lib/aqi-ui.ts';
+import { istTime, shortDate } from '../lib/format.ts';
+import type { BundleBulletin, CityNow } from '../lib/bundle.ts';
+import Icon from './Icon.astro';
+
+interface Props {
+  lang: Lang;
+  now: CityNow | null;
+  bulletin: BundleBulletin | null;
+}
+const { lang, now, bulletin } = Astro.props;
+const d = t(lang);
+const rows = [
+  bulletin && {
+    label: d.source.rowOfficial,
+    aqi: String(bulletin.aqi),
+    slot: slotN(bulletin.aqi),
+    basis: d.source.basisOfficial(bulletin.used, bulletin.total),
+    time: `${shortDate(bulletin.date, lang)} 16:00`,
+    href: bulletin.url,
+  },
+  now && {
+    label: d.source.rowLive,
+    aqi: String(now.aqi),
+    slot: slotN(now.aqi),
+    basis: d.source.basisLive(now.valid, now.total),
+    time: istTime(now.at),
+  },
+  now && {
+    label: d.source.rowRange,
+    aqi: `${now.min}–${now.max}`,
+    slot: slotN(now.max),
+    basis: d.source.basisRange,
+    time: istTime(now.at),
+  },
+].filter(Boolean) as { label: string; aqi: string; slot: string; basis: string; time: string; href?: string }[];
+---
+{rows.length > 0 && (
+  <details class="card group" id="source">
+    <summary class="flex items-center gap-2 px-5 min-h-14 cursor-pointer list-none select-none [&::-webkit-details-marker]:hidden">
+      <span class="t-label flex-1">{d.source.summary}</span>
+      <Icon name="chevron-down" size={18} class="transition-transform group-open:rotate-180 text-[var(--color-fg-subtle)]" />
+    </summary>
+    <div class="px-5 pb-5">
+      <div class="overflow-x-auto -mx-1 px-1">
+        <table class="w-full font-mono text-[13px] tabular">
+          <thead>
+            <tr class="text-left text-[var(--color-fg-subtle)]">
+              <th scope="col" class="t-label font-medium py-2 pr-4">{d.source.colSource}</th>
+              <th scope="col" class="t-label font-medium py-2 pr-4">{d.source.colAqi}</th>
+              <th scope="col" class="t-label font-medium py-2 pr-4">{d.source.colBasis}</th>
+              <th scope="col" class="t-label font-medium py-2">{d.source.colTime}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr class="hairline-t align-top">
+                <th scope="row" class="py-2.5 pr-4 font-medium text-left whitespace-nowrap font-sans text-[14px]">
+                  {r.href ? <a href={r.href} class="underline" target="_blank" rel="noopener">{r.label} ↗</a> : r.label}
+                </th>
+                <td class="py-2.5 pr-4 whitespace-nowrap"><span class="inline-flex items-center gap-1.5" data-aqi={r.slot}><span class="sq"></span>{r.aqi}</span></td>
+                <td class="py-2.5 pr-4 text-[var(--color-fg-muted)] min-w-[180px]">{r.basis}</td>
+                <td class="py-2.5 whitespace-nowrap text-[var(--color-fg-muted)]">{r.time}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <ul class="mt-4 space-y-1.5 t-small text-[var(--color-fg-muted)]">
+        <li>{d.source.sameMethod}</li>
+        {bulletin && now && <li>{d.source.whyTime(istTime(now.at))}</li>}
+        {bulletin && now && bulletin.used !== now.valid && <li>{d.source.whyStations(bulletin.used, now.valid)}</li>}
+        {bulletin?.ours != null && <li>{d.source.reconcile(bulletin.ours, bulletin.aqi, shortDate(bulletin.date, lang))}</li>}
+        {now && now.excluded > 0 && <li>{d.source.excluded(now.excluded)}</li>}
+        <li>{d.source.otherApps}</li>
+      </ul>
+      <p class="t-small mt-3"><a href={`${localePath(lang, '/about')}#methodology`} class="underline">{d.source.methodology} →</a></p>
+    </div>
+  </details>
+)}

@@ -1,0 +1,27 @@
+---
+/** Data-driven FAQ (PLAN.md §5.2 item 12). Only true answers built from the bundle. */
+import { t, type Lang } from '../i18n/index.ts';
+
+interface Props {
+  lang: Lang;
+  items: { q: string; a: string }[];
+}
+const { lang, items } = Astro.props;
+const d = t(lang);
+---
+{items.length > 0 && (
+  <section aria-labelledby="faq-title">
+    <h2 id="faq-title" class="t-h2">{d.faq.title}</h2>
+    <div class="mt-4 card divide-y divide-[var(--color-ring)]">
+      {items.map((f) => (
+        <details class="group px-5">
+          <summary class="flex items-center gap-3 min-h-14 cursor-pointer list-none font-medium [&::-webkit-details-marker]:hidden">
+            <span class="flex-1">{f.q}</span>
+            <span class="text-[var(--color-fg-subtle)] transition-transform group-open:rotate-45 text-xl leading-none" aria-hidden="true">+</span>
+          </summary>
+          <p class="pb-4 text-[var(--color-fg-muted)]">{f.a}</p>
+        </details>
+      ))}
+    </div>
+  </section>
+)}

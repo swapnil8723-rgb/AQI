@@ -1,0 +1,110 @@
+---
+/**
+ * 24-hour bars (DESIGN.md §4.6), server-rendered. Bars are SVG stretched to
+ * the width; labels are HTML so they stay 11 px on every screen.
+ *
+ * Deliberate change from PLAN.md §5.2 item 4: no "cleanest air 2–5 pm" line.
+ * Each hourly value is a 24-hour running average (CPCB's method), so its
+ * minimum does not tell you when the air was actually cleanest — the chart
+ * reports the trend instead, and says what the bars are.
+ */
+import { istParts } from '@saans/pipeline';
+import { t, type Lang } from '../i18n/index.ts';
+import { slotN, slotU } from '../lib/aqi-ui.ts';
+import { istTime } from '../lib/format.ts';
+import type { HourPoint } from '../lib/bundle.ts';
+
+interface Props {
+  lang: Lang;
+  hours: HourPoint[];
+  /** Start of the newest IST hour on the axis (ISO UTC). */
+  end: string;
+}
+const { lang, hours, end } = Astro.props;
+const d = t(lang);
+const endMs = Date.parse(end);
+const slots = Array.from({ length: 24 }, (_, i) => {
+  const t0 = new Date(endMs - (23 - i) * 3600_000).toISOString();
+  const p = hours.find((h) => Math.abs(Date.parse(h.t) - Date.parse(t0)) < 60_000) ?? null;
+  return { t: t0, p, h: istParts(t0).h };
+});
+const W = 240;
+const H = 100;
+// Axis top: the category boundary above the highest bar (100, 200 … 500), so
+// ordinary days are readable; the boundary is labelled, and 500 caps it all.
+const peakAll = Math.max(0, ...hours.map((h) => Math.max(h.aqi, h.u ?? 0)));
+const CAP = [100, 200, 300, 400, 500].find((c) => peakAll <= c * 0.92) ?? 500;
+const y = (v: number) => H - (Math.min(v, CAP) / CAP) * H;
+function bar(i: number, v: number) {
+  const bw = W / 24;
+  const x = i * bw + 0.8;
+  const w = bw - 1.6;
+  const top = Math.min(y(v), H - 1.2);
+  const r = Math.min(0.8, w / 2);
+  return `M${x},${H}V${top + r}Q${x},${top} ${x + r},${top}H${x + w - r}Q${x + w},${top} ${x + w},${top + r}V${H}Z`;
+}
+const present = slots.map((s, i) => ({ ...s, i })).filter((s) => s.p);
+const last = present.at(-1);
+function series(key: 'aqi' | 'u') {
+  const pts = present.filter((s) => s.p![key] !== null).map((s) => ({ i: s.i, v: s.p![key] as number, t: s.t }));
+  if (!pts.length) return null;
+  const now = pts.at(-1)!;
+  const peak = pts.reduce((m, p) => (p.v > m.v ? p : m), pts[0]!);
+  const low = pts.reduce((m, p) => (p.v < m.v ? p : m), pts[0]!);
+  const bounds = key === 'aqi' ? [50, 100, 200, 300, 400] : [50, 100, 150, 200, 300];
+  const line = bounds.reduce((b, x) => (Math.abs(x - now.v) < Math.abs(b - now.v) ? x : b), bounds[0]!);
+  const six = pts.find((p) => p.i === now.i - 6) ?? pts.find((p) => p.i >= now.i - 7 && p.i <= now.i - 5);
+  const trend = six ? (now.v - six.v >= 10 ? d.hours.trendUp : now.v - six.v <= -10 ? d.hours.trendDown : d.hours.trendFlat) : null;
+  return { pts, now, peak, low, line, trend };
+}
+const n = series('aqi');
+const u = series('u');
+const pct = (i: number) => `${((i + 0.5) / 24) * 100}%`;
+const topPct = (v: number) => `${(y(v) / H) * 100}%`;
+---
+{n && last && (
+  <figure class="card p-5" aria-labelledby="hours-title">
+    <div class="flex items-baseline justify-between gap-3">
+      <h2 id="hours-title" class="t-h3">{d.hours.title}</h2>
+      {n.trend && <p class="t-small text-[var(--color-fg-muted)]"><span class="v-n">{n.trend}</span><span class="v-us">{u?.trend}</span></p>}
+    </div>
+    <div class="relative mt-8 h-[140px] md:h-[160px]" aria-hidden="true">
+      <span class="absolute right-0 top-0 -translate-y-full font-mono text-[10px] text-[var(--color-fg-subtle)]">{CAP}</span>
+      <span class="absolute inset-x-0 top-0 h-px bg-[var(--color-ring)]"></span>
+      {[
+        { key: 'v-n', s: n, slot: slotN },
+        { key: 'v-us', s: u, slot: slotU },
+      ].map(({ key, s, slot }) =>
+        s && (
+          <div class={`${key} absolute inset-0`}>
+            <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" class="absolute inset-0 size-full overflow-visible">
+              {slots.map((sl, i) => {
+                const v = sl.p ? (key === 'v-n' ? sl.p.aqi : sl.p.u) : null;
+                return v === null ? (
+                  <rect x={i * (W / 24) + W / 48 - 0.4} y={H - 0.8} width="0.8" height="0.8" fill="var(--color-fg-subtle)" opacity=".5" />
+                ) : (
+                  <path d={bar(i, v)} data-aqi={slot(v)} style="fill:var(--aqi-fill)">
+                    <title>{istTime(sl.t)} · {v}</title>
+                  </path>
+                );
+              })}
+              <line x1="0" x2={W} y1={y(s.line)} y2={y(s.line)} stroke="var(--color-fg-subtle)" stroke-dasharray="3 3" vector-effect="non-scaling-stroke" stroke-width="1" />
+            </svg>
+            <span class="absolute right-0 -translate-y-full font-mono text-[10px] text-[var(--color-fg-subtle)] pr-0.5" style={`top:${topPct(s.line)}`}>{s.line}</span>
+            <span class="absolute -translate-x-1/2 -translate-y-[calc(100%+4px)] font-mono text-[11px] whitespace-nowrap font-medium" style={`left:${pct(s.now.i)};top:${topPct(s.now.v)}`}>{d.hours.now} {s.now.v}</span>
+            {s.peak.i !== s.now.i && (
+              <span class="absolute -translate-x-1/2 -translate-y-[calc(100%+4px)] font-mono text-[11px] whitespace-nowrap text-[var(--color-fg-muted)]" style={`left:${pct(Math.min(Math.max(s.peak.i, 3), 20))};top:${topPct(s.peak.v)}`}>{d.hours.peak} {s.peak.v} · {istTime(s.peak.t)}</span>
+            )}
+          </div>
+        ),
+      )}
+    </div>
+    <div class="relative h-5 mt-1.5 font-mono text-[11px] text-[var(--color-fg-subtle)]" aria-hidden="true">
+      {slots.map((sl, i) => sl.h % 6 === 0 && <span class="absolute -translate-x-1/2" style={`left:${pct(i)}`}>{String(sl.h).padStart(2, '0')}:00</span>)}
+    </div>
+    <figcaption class="t-small text-[var(--color-fg-subtle)] mt-3">
+      <span class="sr-only">{d.hours.summary(n.pts.length, istTime(n.pts[0]!.t), istTime(n.now.t), n.low.v, n.peak.v)} </span>
+      {d.hours.note} {n.pts.length < 24 && d.hours.missing}
+    </figcaption>
+  </figure>
+)}

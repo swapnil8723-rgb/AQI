@@ -1,0 +1,33 @@
+{
+  "name": "@saans/web",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "astro dev --host 127.0.0.1",
+    "build": "astro build",
+    "preview": "astro preview --host 127.0.0.1",
+    "check": "astro check",
+    "seed": "wrangler kv key put bundle:v1 --path=src/fixtures/bundle.json --binding=KV --local",
+    "deploy": "node scripts/check-site-url.mjs && astro build && wrangler deploy",
+    "build:prod": "node scripts/check-site-url.mjs && astro build"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "^14.3.3",
+    "@fontsource-variable/geist": "^5.3.0",
+    "@fontsource-variable/geist-mono": "^5.3.0",
+    "@fontsource/noto-sans-devanagari": "^5.3.0",
+    "@saans/aqi": "*",
+    "@saans/data": "*",
+    "@saans/pipeline": "*",
+    "@tailwindcss/vite": "^4.3.3",
+    "astro": "^7.3.5",
+    "tailwindcss": "^4.3.3"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@cloudflare/workers-types": "^5.20260926.1",
+    "lucide-static": "^1.48.0",
+    "wrangler": "^4.141.0"
+  }
+}

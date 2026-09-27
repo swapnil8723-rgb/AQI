@@ -1,0 +1,130 @@
+---
+/** /about — who we are, the full methodology, and our published accuracy (PLAN.md §6). */
+import Base from '../layouts/Base.astro';
+import { t, localePath, type Lang } from '../i18n/index.ts';
+import { longDate } from '../lib/format.ts';
+import { SITE } from '../lib/site.ts';
+import type { Bundle } from '../lib/bundle.ts';
+
+interface Props {
+  lang: Lang;
+  bundle: Bundle | null;
+}
+const { lang, bundle } = Astro.props;
+const d = t(lang);
+const hi = lang === 'hi';
+const acc = bundle?.accuracy ?? null;
+const pct = (a: number, b: number) => `${Math.round((100 * a) / b)}%`;
+const title = hi ? `हमारे बारे में और पद्धति | ${SITE.nameHi}` : `About & Methodology | ${SITE.name}`;
+const description = hi
+  ? 'साँस CPCB के खुले डेटा से भारत की वायु गुणवत्ता दिखाता है। पूरी पद्धति: डेटा स्रोत, AQI कैसे निकलता है, असामान्य रीडिंग के नियम, और CPCB बुलेटिन से हमारी सटीकता।'
+  : 'Saans shows India’s air quality from CPCB’s open data. Full methodology: sources, how every number is computed, abnormal-reading rules, and our accuracy against CPCB’s bulletin.';
+---
+<Base lang={lang} title={title} description={description} path="/about" bundle={bundle}>
+  <article class="mx-auto max-w-[1200px] px-4 md:px-6 lg:px-8 py-10 md:py-16">
+    <div class="prose">
+      <p class="t-label text-[var(--color-fg-subtle)]">{d.footer.about}</p>
+      <h1 class="t-h1 mt-2">{hi ? 'हम क्या करते हैं, और कैसे' : 'What we do, and exactly how'}</h1>
+      {hi ? (
+        <>
+          <p class="t-body-lg mt-4">{SITE.nameHi} एक स्वतंत्र वेबसाइट है जो केंद्रीय प्रदूषण नियंत्रण बोर्ड (CPCB) के खुले डेटा से भारतीय शहरों की वायु गुणवत्ता दिखाती है। हम CPCB या किसी सरकारी संस्था से जुड़े नहीं हैं। हमारा मकसद एक है: हर नंबर के साथ यह दिखाना कि वह कहाँ से आया।</p>
+          <p>सुझाव, गलती की सूचना या सवाल: <a href={`mailto:${SITE.contact}`}>{SITE.contact}</a>। हम गलतियाँ इसी पेज पर तारीख़ के साथ ठीक करते हैं।</p>
+        </>
+      ) : (
+        <>
+          <p class="t-body-lg mt-4">{SITE.name} is an independent website that shows air quality in Indian cities from the Central Pollution Control Board’s open data. We are not affiliated with CPCB or any government body. Our one idea: every number comes with where it came from.</p>
+          <p>Suggestions, error reports or questions: <a href={`mailto:${SITE.contact}`}>{SITE.contact}</a>. We correct mistakes on this page, with dates.</p>
+        </>
+      )}
+
+      <h2 id="methodology" class="t-h2 scroll-mt-24">{hi ? 'पद्धति' : 'Methodology'}</h2>
+      {hi ? (
+        <>
+          <h3 class="t-h3">1. डेटा स्रोत</h3>
+          <ul>
+            <li><strong>लाइव स्टेशन डेटा:</strong> data.gov.in पर CPCB का “Real time Air Quality Index from various locations” डेटासेट (लगभग 500 स्टेशन, हर घंटे)। हम इसे हर घंटे :20 पर लेते हैं।</li>
+            <li><strong>आधिकारिक दैनिक शहर AQI:</strong> CPCB का शाम 4 बजे का AQI बुलेटिन (PDF), हर शाम। 2015 से अब तक के बुलेटिन भी हमने संग्रहित किए हैं।</li>
+            <li>हम किसी दूसरे ऐप या निजी सेंसर नेटवर्क के नंबर नहीं दिखाते।</li>
+          </ul>
+          <h3 class="t-h3">2. फ़ीड में असल में क्या है</h3>
+          <p>data.gov.in फ़ीड में हर प्रदूषक का मान <strong>सब-इंडेक्स</strong> होता है (0–500 पैमाने पर), सांद्रता नहीं। उदाहरण: CO का मान 28 आता है, जो 0.56 mg/m³ के बराबर है। हमने इसे CPCB के 17 साल के सांद्रता संग्रह से मिलाकर जाँचा है। प्रदूषक पैनल में दिखाई गई सांद्रता इसी सब-इंडेक्स को CPCB की तालिका से उलटकर निकाली गई है।</p>
+          <h3 class="t-h3">3. स्टेशन और शहर का AQI</h3>
+          <ul>
+            <li><strong>स्टेशन AQI</strong> = उसका सबसे ऊँचा सब-इंडेक्स (24 घंटे का औसत; CO और O₃ के लिए 8 घंटे)। कम से कम 3 प्रदूषक चाहिए, जिनमें PM2.5 या PM10 हो — वरना “पर्याप्त डेटा नहीं”।</li>
+            <li><strong>लाइव अनुमान</strong> = शहर के मान्य स्टेशनों के AQI का औसत — वही तरीका जो CPCB अपने बुलेटिन में अपनाता है। जो स्टेशन सबसे ताज़ा अपडेट से 3 घंटे से ज़्यादा पीछे है, उसे शामिल नहीं करते।</li>
+            <li>कौन-सा स्टेशन किस शहर का है, यह CPCB के अपने फ़ीड से लिया जाता है — वही समूह जिसका औसत बुलेटिन में होता है।</li>
+          </ul>
+          <h3 class="t-h3">4. असामान्य रीडिंग</h3>
+          <p>CPCB खुद चेतावनी देता है कि स्वचालित डेटा में गलत रीडिंग हो सकती हैं। हम उन्हें चिह्नित करते हैं, मिटाते नहीं — कच्चा डेटा संग्रह में रहता है, पर ये रीडिंग AQI से बाहर रहती हैं:</p>
+          <ul>
+            <li>ऋणात्मक मान।</li>
+            <li>“मध्यम” या उससे खराब स्तर पर 24 घंटे तक एक ही मान (±1) — अटका हुआ सेंसर।</li>
+            <li>एक घंटे में 150 से ज़्यादा अंकों का उछाल, जो शहर के बाकी स्टेशनों में नहीं दिखा।</li>
+            <li>PM2.5 का PM10 से ज़्यादा होना भौतिक रूप से असंभव है; इसे जाँच के लिए चिह्नित करते हैं।</li>
+          </ul>
+          <h3 class="t-h3">5. ताज़गी</h3>
+          <p>90 मिनट से कम पुराना डेटा: ताज़ा (हरा बिंदु)। 90 मिनट से 6 घंटे: देरी (नारंगी)। 6 घंटे से ज़्यादा: पुराना — बड़ा नंबर हटा दिया जाता है। हम कभी अनुमान से खाली जगह नहीं भरते।</p>
+          <h3 class="t-h3">6. अमेरिकी (US EPA) पैमाना</h3>
+          <p>तुलना के लिए, उन्हीं CPCB आँकड़ों से: PM2.5 और PM10 (24 घंटे), O₃ और CO (8 घंटे), मई 2024 की EPA तालिका से। NO₂ और SO₂ शामिल नहीं, क्योंकि EPA उन्हें 1 घंटे के मान पर आँकता है।</p>
+        </>
+      ) : (
+        <>
+          <h3 class="t-h3">1. Sources</h3>
+          <ul>
+            <li><strong>Live station data:</strong> CPCB’s “Real time Air Quality Index from various locations” dataset on data.gov.in (about 500 stations, hourly). We fetch it every hour at :20.</li>
+            <li><strong>Official daily city AQI:</strong> CPCB’s 4 PM AQI bulletin (a PDF), every evening. We have also archived every bulletin back to 2015.</li>
+            <li>We do not show numbers from other apps or private sensor networks.</li>
+          </ul>
+          <h3 class="t-h3">2. What the feed actually contains</h3>
+          <p>The data.gov.in feed reports each pollutant as a <strong>sub-index</strong> (on the 0–500 scale), not a concentration. For example CO arrives as 28, which is 0.56 mg/m³. We checked this against CPCB’s 17-year concentration archive. The concentrations in the pollutant panel are recovered by inverting CPCB’s breakpoint table.</p>
+          <h3 class="t-h3">3. Station and city AQI</h3>
+          <ul>
+            <li><strong>Station AQI</strong> = its highest sub-index (24-hour averages; 8 hours for CO and O₃). At least 3 pollutants are required, one of them PM2.5 or PM10 — otherwise “insufficient data”.</li>
+            <li><strong>Live estimate</strong> = the average of the city’s valid station AQIs — the same method CPCB uses for its bulletin. A station more than 3 hours behind the newest update is left out.</li>
+            <li>Which station belongs to which city comes from CPCB’s own feed — the same grouping the bulletin averages over.</li>
+          </ul>
+          <h3 class="t-h3">4. Abnormal readings</h3>
+          <p>CPCB itself warns that automated data can contain erroneous values. We flag them, never delete them: the raw data stays in the archive, but these readings are left out of the AQI:</p>
+          <ul>
+            <li>Negative values.</li>
+            <li>A value that stays within ±1 for 24 hours at Moderate or worse — a stuck sensor.</li>
+            <li>A jump of more than 150 points in one hour that the rest of the city does not show.</li>
+            <li>PM2.5 above PM10 is physically impossible; we flag it for review.</li>
+          </ul>
+          <h3 class="t-h3">5. Freshness</h3>
+          <p>Under 90 minutes old: fresh (green dot). 90 minutes to 6 hours: delayed (amber). Over 6 hours: stale — the big number is removed. We never fill a gap with a guess.</p>
+          <h3 class="t-h3">6. The US EPA scale</h3>
+          <p>For comparison, from the same CPCB data: PM2.5 and PM10 (24 h) and O₃ and CO (8 h), using the EPA table as revised in May 2024. NO₂ and SO₂ are left out because the EPA scores them on 1-hour values.</p>
+        </>
+      )}
+
+      <h2 id="accuracy" class="t-h2 scroll-mt-24">{hi ? 'हमारी सटीकता' : 'Our accuracy'}</h2>
+      {hi ? (
+        <p>लॉन्च से पहले हमने जाँचा कि क्या हमारा तरीका CPCB का बुलेटिन दोहरा सकता है। 20 और 23 सितंबर 2026 को, शाम 4 बजे के फ़ीड से निकाला गया हमारा अनुमान <strong>478 में से 97% शहर-दिनों में बुलेटिन से 10% के भीतर</strong> था, और <strong>85% में बिल्कुल बराबर</strong>। हमारे 25 शहरों में 50 में से 49 शहर-दिन 10% के भीतर थे।</p>
+      ) : (
+        <p>Before launch we tested whether our method reproduces CPCB’s bulletin. On 20 and 23 Sep 2026, our estimate from the feed at 4 PM was <strong>within 10% of the bulletin for 97% of 478 city-days</strong>, and <strong>identical for 85%</strong>. For our 25 cities, 49 of 50 city-days were within 10%.</p>
+      )}
+      {acc && (
+        <div class="not-prose card p-5 my-6 grid grid-cols-3 gap-4">
+          <div><p class="t-label text-[var(--color-fg-subtle)]">{hi ? 'शहर-दिन' : 'City-days'}</p><p class="font-mono tabular text-[28px] font-semibold">{acc.n}</p></div>
+          <div><p class="t-label text-[var(--color-fg-subtle)]">{hi ? '±10% के भीतर' : 'Within ±10%'}</p><p class="font-mono tabular text-[28px] font-semibold">{pct(acc.within10, acc.n)}</p></div>
+          <div><p class="t-label text-[var(--color-fg-subtle)]">{hi ? 'बिल्कुल बराबर' : 'Identical'}</p><p class="font-mono tabular text-[28px] font-semibold">{pct(acc.exact, acc.n)}</p></div>
+          <p class="col-span-3 t-small text-[var(--color-fg-subtle)]">{hi ? `हमारा शाम 4 बजे का अनुमान बनाम CPCB बुलेटिन, ${longDate(acc.from, lang)} से ${longDate(acc.to, lang)} तक, अपने-आप अपडेट।` : `Our 4 PM estimate vs CPCB’s bulletin, ${longDate(acc.from, lang)} to ${longDate(acc.to, lang)}, updated automatically.`}</p>
+        </div>
+      )}
+      <p>{hi ? 'जब दोनों अलग होते हैं, तो आम वजह होती है: किसी स्टेशन का डेटा फ़ीड में न आना, या स्टेशनों का अलग समूह। हर शहर के पेज पर “यह नंबर कहाँ से आया” में उस दिन का अंतर दिखता है।' : 'When they differ, the usual reason is a station missing from the feed, or a different set of stations. Each city page shows that day’s difference under “Where this number comes from”.'}</p>
+
+      <h2 id="archive" class="t-h2 scroll-mt-24">{hi ? 'संग्रह' : 'The archive'}</h2>
+      <p>{hi ? 'हम हर घंटे फ़ीड का कच्चा जवाब, और हर स्टेशन-घंटे की एक पंक्ति सहेजते हैं। रोज़ रात यह CSV फ़ाइलों में जाता है। इससे आगे शहरों का इतिहास, पिछली दिवाली से तुलना और पत्रकारों व शोधकर्ताओं के लिए डेटा संभव होगा।' : 'Every hour we keep the raw feed response and one row per station-hour; every night it is written out as CSV. This is what makes city history, this-Diwali-vs-last-Diwali comparisons and a dataset for journalists and researchers possible.'}</p>
+
+      <h2 id="credits" class="t-h2 scroll-mt-24">{hi ? 'श्रेय और लाइसेंस' : 'Credits and licences'}</h2>
+      <ul>
+        <li>{hi ? 'वायु गुणवत्ता डेटा: केंद्रीय प्रदूषण नियंत्रण बोर्ड (data.gov.in के ज़रिए और दैनिक AQI बुलेटिन), गवर्नमेंट ओपन डेटा लाइसेंस – इंडिया। डेटा अलग-अलग एजेंसियाँ (DPCC, UPPCB, MPCB, IMD, IITM आदि) इकट्ठा करती हैं।' : 'Air-quality data: Central Pollution Control Board (via data.gov.in and the daily AQI bulletin), Government Open Data License – India. Data is generated by the agencies that run the stations (DPCC, UPPCB, MPCB, IMD, IITM and others).'}</li>
+        <li>{hi ? 'भारत की सीमाएँ: DataMeet “States/Admin2” (सर्वे ऑफ़ इंडिया के नक्शे के अनुसार), CC BY 4.0।' : 'India boundaries: DataMeet “States/Admin2” (as per the Survey of India map), CC BY 4.0.'}</li>
+        <li>{hi ? 'बुलेटिन-पुनरुत्पादन जाँच के लिए ऐतिहासिक स्नैपशॉट: india-geodata संग्रह, CC BY 4.0।' : 'Historical snapshots used for the bulletin-reproduction test: the india-geodata archive, CC BY 4.0.'}</li>
+        <li>{hi ? 'फ़ॉन्ट: Geist और Noto Sans Devanagari (SIL Open Font License)। आइकन: Lucide (ISC)।' : 'Fonts: Geist and Noto Sans Devanagari (SIL Open Font License). Icons: Lucide (ISC).'}</li>
+      </ul>
+      <p><a href={localePath(lang, '/privacy')}>{d.footer.privacy} →</a></p>
+    </div>
+  </article>
+</Base>

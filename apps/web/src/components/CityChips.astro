@@ -1,0 +1,33 @@
+---
+/** Nearby cities strip (DESIGN.md §4.9): 32 px pills, horizontal scroll that keeps its scrollbar. */
+import { t, localePath, type Lang } from '../i18n/index.ts';
+import { slotN, slotU } from '../lib/aqi-ui.ts';
+import type { Bundle } from '../lib/bundle.ts';
+import type { City } from '@saans/data';
+
+interface Props {
+  lang: Lang;
+  cities: City[];
+  bundle: Bundle | null;
+  title?: string;
+}
+const { lang, cities, bundle, title } = Astro.props;
+const d = t(lang);
+---
+<section aria-labelledby="nearby-title">
+  <h2 id="nearby-title" class="t-h3">{title ?? d.nearby.title}</h2>
+  <ul class="chips mt-3">
+    {cities.map((c) => {
+      const now = bundle?.cities[c.slug]?.now;
+      return (
+        <li>
+          <a href={localePath(lang, `/aqi/${c.slug}`)} class="inline-flex items-center gap-2 h-8 px-3.5 rounded-full ring-1px text-[14px] hover:bg-[var(--color-bg-muted)]" data-aqi={slotN(now?.aqi)} data-aqi-us={slotU(now?.us)}>
+            <span>{lang === 'hi' ? c.hi : c.en}</span>
+            <span class="sq"></span>
+            <span class="font-mono tabular"><span class="v-n">{now?.aqi ?? '–'}</span><span class="v-us">{now?.us ?? '–'}</span></span>
+          </a>
+        </li>
+      );
+    })}
+  </ul>
+</section>

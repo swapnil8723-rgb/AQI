@@ -1,0 +1,85 @@
+---
+/**
+ * AQI calculator (PLAN.md §4: folded into the guide as a widget). Works with
+ * JS off: the form GETs the same page and the server computes the result.
+ * With JS, it recalculates as you type using the same engine (@saans/aqi).
+ */
+import { POLLUTANTS, POLLUTANT_LABEL, POLLUTANT_UNIT, naqiFromConcentrations, naqiSubIndex, usAqi, type Pollutant } from '@saans/aqi';
+import type { Lang } from '../i18n/index.ts';
+import { catLabel, slotN, slotU, usLabel } from '../lib/aqi-ui.ts';
+
+interface Props {
+  lang: Lang;
+  values: Partial<Record<Pollutant, number>>;
+}
+const { lang, values } = Astro.props;
+const has = Object.keys(values).length > 0;
+const n = has ? naqiFromConcentrations(values) : null;
+const u = has ? usAqi(values) : null;
+const L = lang === 'hi'
+  ? { title: 'AQI कैलकुलेटर', hint: 'सांद्रता डालें (24 घंटे का औसत; CO और O₃ के लिए 8 घंटे)। कम से कम 3 प्रदूषक, जिनमें PM2.5 या PM10 हो।', go: 'निकालें', naqi: 'भारत (NAQI)', us: 'अमेरिका (EPA, तुलना के लिए)', sub: 'सब-इंडेक्स', need: 'कम से कम 3 प्रदूषक चाहिए, जिनमें PM2.5 या PM10 हो।' }
+  : { title: 'AQI calculator', hint: 'Enter concentrations (24-hour averages; 8-hour for CO and O₃). At least 3 pollutants, including PM2.5 or PM10.', go: 'Calculate', naqi: 'India (NAQI)', us: 'US EPA (for comparison)', sub: 'Sub-index', need: 'Needs at least 3 pollutants, including PM2.5 or PM10.' };
+---
+<section class="card p-5 not-prose" id="calculator" aria-labelledby="calc-title" data-calc data-lang={lang}>
+  <h3 id="calc-title" class="t-h3">{L.title}</h3>
+  <p class="t-small text-[var(--color-fg-subtle)] mt-1">{L.hint}</p>
+  <form method="get" action="#calculator" class="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+    {POLLUTANTS.map((p) => (
+      <label class="block">
+        <span class="t-label text-[var(--color-fg-subtle)]">{POLLUTANT_LABEL[p]} <span class="normal-case">{POLLUTANT_UNIT[p]}</span></span>
+        <input class="input mt-1 font-mono" type="number" inputmode="decimal" min="0" step="any" name={p} value={values[p] ?? ''} />
+      </label>
+    ))}
+    <div class="flex items-end"><button class="btn btn-primary w-full" type="submit">{L.go}</button></div>
+  </form>
+  <div class="mt-5 grid sm:grid-cols-2 gap-3" data-calc-out aria-live="polite">
+    <div class="rounded-[8px] p-4" data-aqi={slotN(n?.aqi)} style="background:var(--aqi-fill);color:var(--aqi-on)" data-calc-naqi>
+      <p class="t-label">{L.naqi}</p>
+      <p class="font-mono tabular text-[40px] leading-none font-semibold mt-2" data-v>{n?.aqi ?? '–'}</p>
+      <p class="t-small mt-1" data-c>{n?.aqi != null ? catLabel(n.aqi, lang) : has ? L.need : ''}</p>
+    </div>
+    <div class="rounded-[8px] p-4" data-aqi={slotU(u?.aqi)} style="background:var(--aqi-fill);color:var(--aqi-on)" data-calc-us>
+      <p class="t-label">{L.us}</p>
+      <p class="font-mono tabular text-[40px] leading-none font-semibold mt-2" data-v>{u?.aqi ?? '–'}</p>
+      <p class="t-small mt-1" data-c>{u ? usLabel(u.aqi, lang) : ''}</p>
+    </div>
+  </div>
+  {has && (
+    <p class="t-small text-[var(--color-fg-muted)] mt-3 font-mono">
+      {L.sub}: {POLLUTANTS.filter((p) => values[p] !== undefined).map((p) => `${POLLUTANT_LABEL[p]} ${Math.round(naqiSubIndex(p, values[p]) ?? 0)}`).join(' · ')}
+    </p>
+  )}
+  <script type="application/json" data-calc-labels set:html={JSON.stringify({
+    need: L.need,
+    naqi: Object.fromEntries(['good', 'satisfactory', 'moderate', 'poor', 'verypoor', 'severe'].map((c, i) => [c, catLabel([25, 75, 150, 250, 350, 450][i]!, lang)])),
+    us: Object.fromEntries(['good', 'satisfactory', 'moderate', 'poor', 'verypoor', 'severe'].map((c, i) => [c, usLabel([25, 75, 125, 175, 250, 400][i]!, lang)])),
+  })} />
+</section>
+<script>
+  import { naqiFromConcentrations, usAqi, POLLUTANTS, type Pollutant } from '@saans/aqi';
+  const root = document.querySelector<HTMLElement>('[data-calc]');
+  if (root) {
+    const labels = JSON.parse(root.querySelector('[data-calc-labels]')?.textContent ?? '{}');
+    const slotN = (a: number) => (a <= 50 ? 'good' : a <= 100 ? 'satisfactory' : a <= 200 ? 'moderate' : a <= 300 ? 'poor' : a <= 400 ? 'verypoor' : 'severe');
+    const slotU = (a: number) => (a <= 50 ? 'good' : a <= 100 ? 'satisfactory' : a <= 150 ? 'moderate' : a <= 200 ? 'poor' : a <= 300 ? 'verypoor' : 'severe');
+    const update = () => {
+      const v: Partial<Record<Pollutant, number>> = {};
+      for (const p of POLLUTANTS) {
+        const x = root.querySelector<HTMLInputElement>(`input[name="${p}"]`)?.value;
+        if (x !== undefined && x !== '' && Number.isFinite(Number(x))) v[p] = Number(x);
+      }
+      const n = naqiFromConcentrations(v);
+      const u = usAqi(v);
+      const any = Object.keys(v).length > 0;
+      const nb = root.querySelector<HTMLElement>('[data-calc-naqi]')!;
+      const ub = root.querySelector<HTMLElement>('[data-calc-us]')!;
+      nb.dataset.aqi = n.aqi !== null ? slotN(n.aqi) : 'none';
+      nb.querySelector('[data-v]')!.textContent = n.aqi !== null ? String(n.aqi) : '–';
+      nb.querySelector('[data-c]')!.textContent = n.aqi !== null ? labels.naqi[slotN(n.aqi)] : any ? labels.need : '';
+      ub.dataset.aqi = u ? slotU(u.aqi) : 'none';
+      ub.querySelector('[data-v]')!.textContent = u ? String(u.aqi) : '–';
+      ub.querySelector('[data-c]')!.textContent = u ? labels.us[slotU(u.aqi)] : '';
+    };
+    root.querySelectorAll('input').forEach((i) => i.addEventListener('input', update));
+  }
+</script>

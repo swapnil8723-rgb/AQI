@@ -1,0 +1,49 @@
+---
+import { CITIES } from '@saans/data';
+import { t, localePath, type Lang } from '../i18n/index.ts';
+import { SITE } from '../lib/site.ts';
+import type { Bundle } from '../lib/bundle.ts';
+
+interface Props {
+  lang: Lang;
+  bundle: Bundle | null;
+}
+const { lang } = Astro.props;
+const d = t(lang);
+const cities = CITIES.filter((c) => c.live);
+---
+<footer class="hairline-t bg-[var(--color-bg-subtle)] mt-16">
+  <div class="mx-auto max-w-[1200px] px-4 md:px-6 lg:px-8 py-12 grid gap-10 md:grid-cols-[2fr_1fr_1fr]">
+    <div>
+      <h2 class="t-label text-[var(--color-fg-subtle)] mb-3">{d.footer.cities}</h2>
+      <ul class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1.5 t-small">
+        {cities.map((c) => (
+          <li><a href={localePath(lang, `/aqi/${c.slug}`)} class="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">{lang === 'hi' ? c.hi : c.en} AQI</a></li>
+        ))}
+      </ul>
+    </div>
+    <div>
+      <h2 class="t-label text-[var(--color-fg-subtle)] mb-3">{d.footer.learn}</h2>
+      <ul class="space-y-1.5 t-small">
+        <li><a href={localePath(lang, '/aqi-explained')} class="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">{d.footer.guide}</a></li>
+        <li><a href={localePath(lang, '/about')} class="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">{d.footer.about}</a></li>
+        <li><a href={`${localePath(lang, '/about')}#methodology`} class="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">{d.footer.methodology}</a></li>
+        <li><a href={localePath(lang, '/privacy')} class="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">{d.footer.privacy}</a></li>
+      </ul>
+    </div>
+    <div>
+      <h2 class="t-label text-[var(--color-fg-subtle)] mb-3">{d.footer.contact}</h2>
+      <p class="t-small"><a href={`mailto:${SITE.contact}`} class="text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]">{SITE.contact}</a></p>
+      <p class="mt-4 flex items-center gap-1.5">
+        <span class="text-[18px] font-semibold tracking-[-0.04em]">{SITE.name.toLowerCase()}</span>
+        <span class="inline-block size-2 rounded-full translate-y-[3px] bg-[var(--color-fg)]" data-living-dot></span>
+      </p>
+      <p class="t-small text-[var(--color-fg-subtle)] mt-1" lang={lang}>{SITE.tagline[lang]}</p>
+    </div>
+  </div>
+  <div class="hairline-t">
+    <p class="mx-auto max-w-[1200px] px-4 md:px-6 lg:px-8 py-6 t-small text-[var(--color-fg-subtle)]">
+      {d.footer.attribution} <a href={`${localePath(lang, '/about')}#methodology`} class="underline">{d.footer.methodology}</a>.
+    </p>
+  </div>
+</footer>

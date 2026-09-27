@@ -1,0 +1,14 @@
+---
+import GuidePage from '../views/GuidePage.astro';
+import { getBundle } from '../lib/bundle.ts';
+import { POLLUTANTS, type Pollutant } from '@saans/aqi';
+
+// Zero-JS calculator: values arrive as query parameters.
+const calc: Partial<Record<Pollutant, number>> = {};
+for (const p of POLLUTANTS) {
+  const v = Astro.url.searchParams.get(p);
+  if (v !== null && v !== '' && Number.isFinite(Number(v)) && Number(v) >= 0) calc[p] = Math.min(Number(v), 100000);
+}
+const bundle = await getBundle();
+---
+<GuidePage lang="en" bundle={bundle} calc={calc} />

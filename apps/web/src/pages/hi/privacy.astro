@@ -1,0 +1,6 @@
+---
+import PrivacyPage from '../../views/PrivacyPage.astro';
+import { getBundle } from '../../lib/bundle.ts';
+const bundle = await getBundle();
+---
+<PrivacyPage lang="hi" bundle={bundle} />

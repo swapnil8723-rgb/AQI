@@ -1,0 +1,18 @@
+---
+import { CITY_BY_SLUG, SLUG_ALIASES } from '@saans/data';
+import CityPage from '../../views/CityPage.astro';
+import NotFound from '../../views/NotFound.astro';
+import { getBundle } from '../../lib/bundle.ts';
+
+const lang = 'en';
+const raw = Astro.params.city ?? '';
+const slug = raw.toLowerCase();
+// Canonical slugs only: case and old names 301 (PLAN.md §4 URL notes).
+if (slug !== raw) return Astro.redirect(`/aqi/${slug}`, 301);
+const alias = SLUG_ALIASES[slug];
+if (alias) return Astro.redirect(`/aqi/${alias}`, 301);
+const city = CITY_BY_SLUG.get(slug);
+const bundle = await getBundle();
+if (!city?.live) Astro.response.status = 404;
+---
+{city?.live ? <CityPage lang={lang} city={city} bundle={bundle} /> : <NotFound lang={lang} bundle={bundle} />}

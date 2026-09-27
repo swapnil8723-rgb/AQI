@@ -1,0 +1,17 @@
+---
+/** Category words for the map card, once per map (the card derives the rest from the number). */
+import { t, type Lang } from '../i18n/index.ts';
+import { catLabel, usLabel } from '../lib/aqi-ui.ts';
+interface Props {
+  lang: Lang;
+  link: string;
+}
+const { lang, link } = Astro.props;
+const labels = {
+  n: [25, 75, 150, 250, 350, 450].map((v) => catLabel(v, lang)),
+  u: [25, 75, 125, 175, 250, 400].map((v) => usLabel(v, lang)),
+  link,
+  none: t(lang).insufficient,
+};
+---
+<script type="application/json" data-card-labels set:html={JSON.stringify(labels)} />

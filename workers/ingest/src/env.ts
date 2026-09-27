@@ -1,0 +1,20 @@
+export interface Env {
+  DB: D1Database;
+  KV: KVNamespace;
+  ARCHIVE: R2Bucket;
+  /** data.gov.in API key (secret). */
+  DATA_GOV_IN_KEY: string;
+  /** Bearer token for POST /ingest and /run/* (secret). */
+  INGEST_TOKEN?: string;
+  TELEGRAM_BOT_TOKEN?: string;
+  TELEGRAM_CHAT_ID?: string;
+  CONTACT_EMAIL?: string;
+}
+
+/** KV key the website reads. Bump the version when the Bundle shape changes. */
+export const BUNDLE_KEY = 'bundle:v1';
+export const STATUS_KEY = 'ingest:status';
+
+export function userAgent(env: Env): string {
+  return `SaansAQI/1.0 (air-quality archive; contact ${env.CONTACT_EMAIL ?? 'unknown'})`;
+}
