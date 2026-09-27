@@ -1,0 +1,49 @@
+# The hourly CPCB ingest, for the Cloudflare Workers Free plan.
+#
+# Free Workers get 10 ms of CPU per request and 5 cron triggers per account —
+# too little to parse ~3,500 feed rows and a 14-page PDF every hour. So the
+# work runs here and the results are stored through the Worker's /store
+# gateway (workers/ingest/src/store.ts).
+#
+# Each run: the hourly feed; from 17:00 to 21:00 IST also the 4 PM bulletin;
+# just after midnight IST also yesterday's archive. GitHub emails you if a run fails.
+#
+# Setup (repo → Settings → Secrets and variables → Actions):
+#   secrets:   DATA_GOV_IN_KEY, INGEST_TOKEN (same value as the Worker's secret)
+#   variables: INGEST_URL = https://aqi.<you>.workers.dev
+#
+# On Workers Paid: restore the crons in workers/ingest/wrangler.jsonc and disable this workflow.
+name: ingest
+
+on:
+  schedule:
+    - cron: '20 * * * *'
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'auto | hourly | bulletin | archive'
+        default: 'auto'
+      date:
+        description: 'YYYY-MM-DD (bulletin / archive; blank = today / yesterday)'
+        default: ''
+
+concurrency:
+  group: ingest
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: node scripts/ingest-run.ts "${{ inputs.job || 'auto' }}" "${{ inputs.date }}"
+        env:
+          DATA_GOV_IN_KEY: ${{ secrets.DATA_GOV_IN_KEY }}
+          INGEST_TOKEN: ${{ secrets.INGEST_TOKEN }}
+          INGEST_URL: ${{ vars.INGEST_URL }}

@@ -16,6 +16,30 @@ Two parts, always:
 
 ---
 
+## Free plan (current setup)
+
+On Workers **Free**, the Worker cannot do the hourly work itself (10 ms CPU per
+request, 5 cron triggers per account). So:
+
+- **GitHub Actions** (`.github/workflows/ingest.yml`) runs every hour at :20 UTC:
+  fetches CPCB, computes everything, parses the 4 PM bulletin (17:00–21:00 IST),
+  writes yesterday's archive (00:xx IST). GitHub emails you if a run fails.
+- **The Worker** (`aqi`) only stores what Actions sends (`/store`, `/read`) and
+  serves `/health` and `/v1/*.json`. It has no cron triggers.
+
+Setup:
+1. Worker **aqi → Settings → Variables and Secrets**: add secret `INGEST_TOKEN` (a long password).
+2. GitHub repo **AQI → Settings → Secrets and variables → Actions**:
+   - *Secrets*: `DATA_GOV_IN_KEY` (your data.gov.in key), `INGEST_TOKEN` (the same password)
+   - *Variables*: `INGEST_URL` = `https://aqi.swapnil-8723.workers.dev`
+3. GitHub → **Actions → ingest → Run workflow** (job `auto`) to start now; then it runs every hour.
+4. Check `https://aqi.swapnil-8723.workers.dev/health` → `"healthy": true`.
+
+Private repos get 2,000 free Actions minutes a month; this uses about 1,000.
+**Moving to Workers Paid later:** restore the crons in `workers/ingest/wrangler.jsonc`
+(the line is in the comment), add `DATA_GOV_IN_KEY` to the Worker, push, and
+disable the workflow (Actions → ingest → ⋯ → Disable workflow).
+
 ## 0. Run it on your computer
 
 ```bash

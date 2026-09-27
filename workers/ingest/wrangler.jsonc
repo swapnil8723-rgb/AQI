@@ -20,16 +20,12 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
-  "triggers": {
-    "crons": [
-      // Hourly feed at :20 — CPCB refreshes on the hour; :20 gives it time to publish.
-      "20 * * * *",
-      // 4 PM bulletin: 17:15 IST, retried hourly until 21:15 IST (11:45–15:45 UTC).
-      "45 11-15 * * *",
-      // Yesterday's archive dump at 00:30 IST (19:00 UTC).
-      "0 19 * * *"
-    ]
-  },
+  // Workers Free: no cron triggers here. GitHub Actions (.github/workflows/ingest.yml)
+  // runs the hourly work and stores it through this Worker's /store endpoints.
+  // On Workers Paid, switch the jobs back into the Worker by restoring:
+  //   "triggers": { "crons": ["20 * * * *", "45 11-15 * * *", "0 19 * * *"] }
+  // and disabling the GitHub workflow.
+  "triggers": { "crons": [] },
   "d1_databases": [
     {
       "binding": "DB",

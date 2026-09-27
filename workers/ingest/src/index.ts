@@ -10,14 +10,16 @@
  *   POST /run/hourly             Bearer; run the hourly job now
  *   POST /run/bulletin?date=     Bearer; fetch and reconcile a bulletin (default: today IST)
  *   POST /run/archive?date=      Bearer; dump a day to R2 (default: yesterday IST)
+ *   /store/*, /read/*            Bearer; storage gateway for GitHub Actions on the Free plan (store.ts)
  */
 
-import { addDays, istDate, type Bundle } from '@saans/pipeline';
+import { addDays, istDate } from '@saans/pipeline';
 import { readStatus, record, type Job } from './alert.ts';
 import { archiveDay } from './archive.ts';
 import { bulletinJob } from './bulletin.ts';
 import { BUNDLE_KEY, REPLAY_KEY, type Env } from './env.ts';
 import { hourly } from './hourly.ts';
+import { store } from './store.ts';
 
 async function run(env: Env, job: Job, fn: () => Promise<unknown>): Promise<unknown> {
   const started = Date.now();
@@ -91,10 +93,15 @@ export default {
       });
     }
     if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/health')) {
-      const [status, bundle] = await Promise.all([readStatus(env), env.KV.get<Bundle>(BUNDLE_KEY, 'json')]);
-      const age = bundle ? Math.round((Date.now() - Date.parse(bundle.generatedAt)) / 60000) : null;
+      // Status only (a few hundred bytes): parsing the 160 KB bundle would cost CPU on the Free plan.
+      const status = await readStatus(env);
+      const age = status.lastGood ? Math.round((Date.now() - Date.parse(status.lastGood)) / 60000) : null;
       const healthy = age !== null && age < 120 && status.failures < 2;
-      return json({ healthy, bundleAgeMinutes: age, feedAt: bundle?.feedAt ?? null, ...status }, healthy ? 200 : 503);
+      return json({ healthy, minutesSinceLastGoodRun: age, ...status }, healthy ? 200 : 503);
+    }
+    if (url.pathname.startsWith('/store/') || url.pathname.startsWith('/read/')) {
+      if (!authorised(req, env)) return json({ error: 'unauthorised' }, 401);
+      return (await store(req, env, url)) ?? json({ error: 'not found' }, 404);
     }
     if (req.method !== 'POST') return json({ error: 'not found' }, 404);
     if (!authorised(req, env)) return json({ error: 'unauthorised' }, 401);
