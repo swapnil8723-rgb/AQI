@@ -1,7 +1,11 @@
 import { POLLUTANTS, type Pollutant } from '@saans/aqi';
 import { CITIES } from '@saans/data';
 import {
+  addDays,
+  buildReplay,
+  coordLookup,
   type Accuracy,
+  type Replay,
   istDate,
   istHour,
   stationFlags,
@@ -153,6 +157,30 @@ export async function accuracy(db: D1Database): Promise<Accuracy | null> {
     )
     .first<{ n: number; within10: number; exact: number; from: string; to: string }>();
   return r && r.n ? r : null;
+}
+
+/** CPCB's bulletin value on the same calendar day last year, per launch city. */
+export async function lastYearBulletins(db: D1Database, today: string): Promise<Record<string, DayPoint>> {
+  const date = `${Number(today.slice(0, 4)) - 1}${today.slice(4)}`;
+  const { results } = await db
+    .prepare('SELECT city_slug, date, aqi FROM bulletin WHERE city_slug IS NOT NULL AND date = ?')
+    .bind(date)
+    .all<{ city_slug: string; date: string; aqi: number }>();
+  const out: Record<string, DayPoint> = {};
+  for (const r of results) out[r.city_slug] = { d: r.date, aqi: r.aqi };
+  return out;
+}
+
+/** The home map's 30-day replay: every city in the bulletin, located by its stations. */
+export async function replay30(db: D1Database, lastDay: string): Promise<Replay> {
+  const dates = Array.from({ length: 30 }, (_, i) => addDays(lastDay, i - 29));
+  const [{ results: rows }, { results: coords }] = await Promise.all([
+    db.prepare('SELECT date, city, aqi FROM bulletin WHERE date >= ? AND date <= ?').bind(dates[0], lastDay).all<{ date: string; city: string; aqi: number }>(),
+    db.prepare('SELECT city, state, AVG(lat) AS lat, AVG(lon) AS lon FROM stations GROUP BY city, state').all<{ city: string; state: string; lat: number; lon: number }>(),
+  ]);
+  const byDate: Record<string, { city: string; aqi: number }[]> = {};
+  for (const r of rows) (byDate[r.date] ??= []).push({ city: r.city, aqi: r.aqi });
+  return buildReplay(dates, byDate, coordLookup(coords));
 }
 
 export const LAUNCH_SLUGS = CITIES.map((c) => c.slug);

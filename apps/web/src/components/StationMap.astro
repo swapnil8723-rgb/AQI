@@ -9,6 +9,7 @@ import cityMaps from '../data/city-maps.json';
 import { t, type Lang } from '../i18n/index.ts';
 import { catLabel, slotN, slotU } from '../lib/aqi-ui.ts';
 import MapCardLabels from './MapCardLabels.astro';
+import MapControls from './MapControls.astro';
 import { istTime } from '../lib/format.ts';
 import { mercator, r1 } from '../lib/map.ts';
 import type { BundleStation } from '../lib/bundle.ts';
@@ -37,21 +38,24 @@ const dots = m
       <h2 id="map-title" class="t-h3">{d.map.title}</h2>
       <p class="t-small text-[var(--color-fg-subtle)]">{d.map.tap}</p>
     </div>
-    <div class="relative mt-3 rounded-[12px] bg-[var(--color-bg-subtle)] ring-1px overflow-hidden" data-map>
-      <svg viewBox={`0 0 ${m.w} ${m.h}`} class="block w-full h-auto max-h-[360px] md:max-h-[440px]" role="group" aria-label={d.map.title}>
+    <div class="relative mt-3 rounded-[12px] bg-[var(--color-bg-subtle)] ring-1px overflow-hidden outline-none" data-map data-city-map data-km={m.scale.km} data-km-unit={lang === 'hi' ? 'किमी' : 'km'} tabindex="-1">
+      <svg viewBox={`0 0 ${m.w} ${m.h}`} class="block w-full h-auto max-h-[360px] md:max-h-[440px] select-none" role="group" aria-label={d.map.title} data-zoom-svg>
         <path d={m.land} fill="var(--color-bg)" stroke="var(--color-fg-subtle)" stroke-width="0.75" vector-effect="non-scaling-stroke" />
         <path d={m.borders} fill="none" stroke="var(--color-ring-strong)" stroke-width="1" stroke-dasharray="4 3" vector-effect="non-scaling-stroke" />
         {dots.map(({ s, x, y }) => (
           <a href={`#${s.anchor}`} data-card data-n={s.place} data-v={s.valid ? (s.aqi ?? '') : ''} data-u={s.valid ? (s.us ?? '') : ''} data-s={[s.dominant.map((p: Pollutant) => POLLUTANT_LABEL[p]).join(', '), s.at ? istTime(s.at) : ''].filter(Boolean).join(' · ')} aria-label={`${s.place}, AQI ${s.valid && s.aqi !== null ? `${s.aqi}, ${catLabel(s.aqi, lang)}` : d.insufficient}`}>
-            <circle cx={x} cy={y} r="22" fill="transparent" />
-            <circle cx={x} cy={y} r={s.valid ? 9 : 6} data-aqi={slotN(s.valid ? s.aqi : null)} data-aqi-us={slotU(s.valid ? s.us : null)} class="map-dot" />
+            <circle cx={x} cy={y} r="22" style="--r:22" class="hit" />
+            <circle cx={x} cy={y} r={s.valid ? 9 : 6} style={`--r:${s.valid ? 9 : 6}`} data-aqi={slotN(s.valid ? s.aqi : null)} data-aqi-us={slotU(s.valid ? s.us : null)} class:list={['map-dot', s.valid && 'st-dot']} />
+            {s.valid && s.aqi !== null && <text x={x} y={y} class="st-num" data-aqi={slotN(s.aqi)}><tspan class="v-n">{s.aqi}</tspan><tspan class="v-us">{s.us ?? '–'}</tspan></text>}
           </a>
         ))}
       </svg>
       <div class="absolute left-3 bottom-3 flex items-center gap-2 font-mono text-[11px] text-[var(--color-fg-subtle)]" aria-hidden="true">
         <span class="block h-1.5 border-x border-b border-current" style={`width:${(m.scale.px / m.w) * 100}cqw;min-width:40px;max-width:30%`}></span>
-        <span>{d.map.scaleBar(m.scale.km)}</span>
+        <span data-km-label>{d.map.scaleBar(m.scale.km)}</span>
       </div>
+      <p class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 raised px-3 py-1.5 t-small pointer-events-none whitespace-nowrap" data-zoom-hint hidden>{lang === 'hi' ? 'ज़ूम: Ctrl + स्क्रॉल, पिंच, या + −' : 'Zoom: Ctrl + scroll, pinch, or + −'}</p>
+      <MapControls lang={lang} />
       <div class="map-card raised absolute z-10 w-[220px] p-4 hidden" data-map-card role="status"></div>
       <MapCardLabels lang={lang} link={d.map.see} />
     </div>
@@ -60,4 +64,5 @@ const dots = m
 )}
 <script>
   import '../scripts/mapcards.ts';
+  import '../scripts/stationmap.ts';
 </script>

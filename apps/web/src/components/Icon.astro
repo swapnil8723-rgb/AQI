@@ -1,7 +1,28 @@
 ---
-/** Lucide icons (ISC), inlined at build time — no icon JS. DESIGN.md §4.5: stroke 1.5. */
-// Options stay on one line: Vite's dependency scanner misreads a line that starts with "import:".
-const icons = import.meta.glob<string>('/node_modules/lucide-static/icons/{footprints,baby,app-window,wind,shield,crosshair,search,moon,sun,share-2,map-pin,arrow-up-right,info,chevron-down}.svg', { query: '?raw', import: 'default', eager: true });
+/**
+ * Lucide icons (ISC), inlined at build time — no icon JS. DESIGN.md §4.5: stroke 1.5.
+ * Imported by package name, not a /node_modules glob: npm workspaces hoist the
+ * package to the repo root, where a path glob from apps/web finds nothing.
+ */
+import footprints from 'lucide-static/icons/footprints.svg?raw';
+import baby from 'lucide-static/icons/baby.svg?raw';
+import appWindow from 'lucide-static/icons/app-window.svg?raw';
+import wind from 'lucide-static/icons/wind.svg?raw';
+import shield from 'lucide-static/icons/shield.svg?raw';
+import crosshair from 'lucide-static/icons/crosshair.svg?raw';
+import search from 'lucide-static/icons/search.svg?raw';
+import moon from 'lucide-static/icons/moon.svg?raw';
+import sun from 'lucide-static/icons/sun.svg?raw';
+import share2 from 'lucide-static/icons/share-2.svg?raw';
+import mapPin from 'lucide-static/icons/map-pin.svg?raw';
+import arrowUpRight from 'lucide-static/icons/arrow-up-right.svg?raw';
+import info from 'lucide-static/icons/info.svg?raw';
+import chevronDown from 'lucide-static/icons/chevron-down.svg?raw';
+
+const ICONS: Record<string, string> = {
+  footprints, baby, 'app-window': appWindow, wind, shield, crosshair, search, moon, sun,
+  'share-2': share2, 'map-pin': mapPin, 'arrow-up-right': arrowUpRight, info, 'chevron-down': chevronDown,
+};
 
 interface Props {
   name: string;
@@ -9,7 +30,8 @@ interface Props {
   class?: string;
 }
 const { name, size = 20, class: cls = '' } = Astro.props;
-const raw = Object.entries(icons).find(([k]) => k.endsWith(`/${name}.svg`))?.[1] ?? '';
+const raw = ICONS[name];
+if (!raw) throw new Error(`Icon "${name}" is not imported in Icon.astro`);
 const svg = raw
   .replace(/<!--.*?-->/s, '')
   .replace(/\s(width|height)="24"/g, ` $1="${size}"`)

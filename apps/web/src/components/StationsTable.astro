@@ -7,7 +7,8 @@
 import { POLLUTANT_LABEL, type Pollutant } from '@saans/aqi';
 import { t, type Lang } from '../i18n/index.ts';
 import { slotN, slotU } from '../lib/aqi-ui.ts';
-import { istTime, relative } from '../lib/format.ts';
+import { istTime, relative, shortDate, todayIst } from '../lib/format.ts';
+import { istDate } from '@saans/pipeline';
 import type { BundleStation } from '../lib/bundle.ts';
 
 interface Props {
@@ -20,6 +21,9 @@ const valid = stations.filter((s) => s.valid);
 /** Rows shown before "Show all" (JS only — with JS off every row is visible). */
 const VISIBLE = 12;
 const invalid = stations.filter((s) => !s.valid);
+// A bare "16:00" from yesterday reads as today's: add the date when it isn't today.
+const today = todayIst();
+const when = (iso: string) => (istDate(iso) === today ? istTime(iso) : `${shortDate(istDate(iso), lang)} ${istTime(iso)}`);
 const dom = (s: BundleStation) => s.dominant.map((p: Pollutant) => POLLUTANT_LABEL[p]).join(', ');
 const flagText = (f: string) => {
   const [p, k] = f.split(':') as [Pollutant, string];
@@ -48,12 +52,12 @@ const flagText = (f: string) => {
         <tr id={s.anchor} data-name={s.place} data-aqi-v={s.aqi ?? -1}>
           <th scope="row">
             {s.place}
-            <span class="m">{dom(s)}{s.at && ` · ${istTime(s.at)}`}</span>
+            <span class="m">{dom(s)}{s.at && ` · ${when(s.at)}`}</span>
             {s.flags.length > 0 && <span class="f">{s.flags.map(flagText).join(' · ')}</span>}
           </th>
           <td class="r"><span class="v" data-aqi={slotN(s.aqi)} data-aqi-us={slotU(s.us)}><span class="sq"></span><span class="v-n">{s.aqi}</span><span class="v-us">{s.us ?? '–'}</span></span></td>
           <td class="w p">{dom(s)}</td>
-          <td class="w r t">{s.at && <time datetime={s.at}>{istTime(s.at)}</time>}</td>
+          <td class="w r t">{s.at && <time datetime={s.at}>{when(s.at)}</time>}</td>
         </tr>
       ))}
     </tbody>

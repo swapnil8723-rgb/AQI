@@ -22,7 +22,7 @@ const en = {
   htmlLang: 'en-IN',
   ogLocale: 'en_IN',
   nav: {
-    search: 'Search city or area…',
+    search: 'Search a city, area or station…',
     searchShort: 'Search',
     theme: 'Toggle dark mode',
     langEn: 'EN',
@@ -191,7 +191,7 @@ const en = {
   stale: {
     banner: 'CPCB data is delayed. Numbers below are from the last successful update.',
   },
-  dev: { fixture: 'DEV FIXTURE — archived CPCB data, timestamps shifted' },
+  dev: { fixture: (src: string) => `Dev preview · real CPCB data from ${src}, replayed as today` },
   notFound: { title: 'Page not found', body: 'That page doesn’t exist. Try a city:' },
   insufficient: 'Insufficient data',
 };
@@ -202,7 +202,7 @@ const hi: Dict = {
   htmlLang: 'hi-IN',
   ogLocale: 'hi_IN',
   nav: {
-    search: 'शहर या इलाका खोजें…',
+    search: 'शहर, इलाका या स्टेशन खोजें…',
     searchShort: 'खोजें',
     theme: 'डार्क मोड बदलें',
     langEn: 'EN',
@@ -370,7 +370,7 @@ const hi: Dict = {
   stale: {
     banner: 'CPCB का डेटा देर से आ रहा है। नीचे के आँकड़े पिछले सफल अपडेट के हैं।',
   },
-  dev: { fixture: 'DEV FIXTURE — आर्काइव का CPCB डेटा, समय खिसकाया गया' },
+  dev: { fixture: (src) => `डेव प्रीव्यू · ${src} का असली CPCB डेटा, आज के रूप में` },
   notFound: { title: 'पेज नहीं मिला', body: 'यह पेज मौजूद नहीं है। कोई शहर चुनें:' },
   insufficient: 'पर्याप्त डेटा नहीं',
 };

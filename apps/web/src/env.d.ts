@@ -15,3 +15,8 @@ declare module 'cloudflare:workers' {
     [key: string]: unknown;
   };
 }
+
+declare module '*.svg?raw' {
+  const content: string;
+  export default content;
+}

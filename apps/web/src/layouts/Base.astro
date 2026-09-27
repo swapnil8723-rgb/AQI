@@ -14,6 +14,8 @@ import { SITE } from '../lib/site.ts';
 import type { Bundle } from '../lib/bundle.ts';
 import type { SlotName } from '../lib/aqi-ui.ts';
 import { freshness } from '../lib/aqi-ui.ts';
+import { istTime, shortDate } from '../lib/format.ts';
+import { istDate } from '@saans/pipeline';
 import { env } from 'cloudflare:workers';
 
 interface Props {
@@ -103,7 +105,7 @@ const adsense = vars.ADSENSE_CLIENT;
   <body class="min-h-dvh flex flex-col">
     <a href="#main" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 btn btn-primary">Skip to content</a>
     {bundle?.fixture && (
-      <div class="t-label text-center py-1.5" style="background:var(--color-fg);color:var(--color-bg)">{d.dev.fixture} · {bundle.fixture.builtFrom.slice(0, 16)}Z</div>
+      <div class="t-small text-center py-1.5 bg-[var(--color-bg-muted)] text-[var(--color-fg-muted)] hairline-b">{d.dev.fixture(`${shortDate(istDate(bundle.fixture.builtFrom), lang)} ${istTime(bundle.fixture.builtFrom)} IST`)}</div>
     )}
     <Nav lang={lang} path={path} slot={slot} />
     {bundle && feedState === 'stale' && (
@@ -125,7 +127,7 @@ const adsense = vars.ADSENSE_CLIENT;
       >
         {sticky === 'city' ? (
           <>
-            <button type="button" class="btn btn-primary flex-1" data-share-trigger>{d.share.button}</button>
+            <button type="button" class="btn btn-tint flex-1" data-aqi={slot} data-share-open>{d.share.button}</button>
             <a href={`${localePath(lang, '/')}#near`} class="btn btn-secondary" data-near-link>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
               {d.near.short}
@@ -133,7 +135,7 @@ const adsense = vars.ADSENSE_CLIENT;
           </>
         ) : (
           <>
-            <button type="button" class="btn btn-primary flex-1" data-locate-trigger>
+            <button type="button" class="btn btn-secondary flex-1" data-locate-trigger>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
               {d.near.short}
             </button>

@@ -36,7 +36,29 @@ npm run seed             # load the fixture into the site's local KV
 npm run dev              # site on http://127.0.0.1:4321 (runs on workerd, like production)
 npm run smoke            # every route, redirects, "Official" wording, JSON endpoints
 npm run map              # rebuild india-map.json / city-maps.json from DataMeet shapefiles
+node scripts/build-replay.ts   # static replays (public/replay/diwali-2025.json) from the bulletin backfill
 ```
+
+`npm run fixture` replays real archived CPCB data as *today*: it picks the
+archived snapshot whose IST time of day is closest to now and moves the whole
+day (readings, hourly history, bulletins) by whole days, so every date on the
+page stays coherent. Re-run it and `npm run seed` when the preview says stale.
+
+## Features beyond the plan (round 2, 27 Sep 2026)
+
+- **Zoom and pan on both maps** (`scripts/zoom.ts`, ~3 KB): + − reset, double-tap,
+  Ctrl/⌘ + scroll or trackpad pinch (plain scroll still scrolls the page), two-finger
+  pinch, drag once zoomed, keyboard. Dots keep their screen size, so zooming separates them.
+- **Semantic zoom on the India map**: past 2.5× every CPCB station (~490) appears;
+  past 5× each pin shows its AQI. Deep links: `/#map=8/19.99/73.79`.
+- **"Watch the air move"**: replay CPCB's official daily AQI for every city —
+  the last 30 days (KV `replay:30d`, rebuilt by the 4 PM bulletin job) or Diwali 2025
+  (static file). 21 Oct 2025: the Indo-Gangetic plain turns red; worst city Jind, 421.
+- **Search that finds stations and areas** ("Anand Vihar" → its row on the Delhi page)
+  and every other CPCB city (→ the map, zoomed there), plus recent and popular cities.
+- **Share sheet**: image card previewed on the phone, Post 4:5 or WhatsApp Status 9:16,
+  English or Hindi, with 24-hour bars, the official CPCB value and (Status) last year.
+- **Same day last year** (official CPCB value) on every city page, from the backfill.
 
 ## What we verified (26–27 Sep 2026)
 

@@ -11,7 +11,7 @@ import {
   parseFeedRecords,
   type CityNow,
 } from '@saans/pipeline';
-import { accuracy, bulletinDays, cityHours, latestBulletins, previousReadings, writeCityHours, writeStationHours } from './db.ts';
+import { accuracy, bulletinDays, cityHours, lastYearBulletins, latestBulletins, previousReadings, writeCityHours, writeStationHours } from './db.ts';
 import { BUNDLE_KEY, userAgent, type Env } from './env.ts';
 
 /** Fewer usable rows than this means a broken or partial feed: archive it, publish nothing. */
@@ -75,13 +75,14 @@ export async function hourly(env: Env, records?: unknown[]): Promise<HourlyResul
   for (const c of CITIES) nows[c.slug] = first.cities[c.slug]?.now ?? null;
   await writeCityHours(env.DB, hour, nows);
 
-  const [hours, days, bulletins, acc] = await Promise.all([
+  const [hours, days, bulletins, acc, lastYear] = await Promise.all([
     cityHours(env.DB, hour),
     bulletinDays(env.DB, today),
     latestBulletins(env.DB, bulletinUrl),
     accuracy(env.DB),
+    lastYearBulletins(env.DB, today),
   ]);
-  const bundle = buildBundle({ stations, hours, days, bulletins, accuracy: acc, now });
+  const bundle = buildBundle({ stations, hours, days, bulletins, lastYear, accuracy: acc, now });
   await env.KV.put(BUNDLE_KEY, JSON.stringify(bundle));
 
   return {

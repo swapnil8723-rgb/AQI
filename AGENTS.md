@@ -24,3 +24,7 @@ DESIGN.md decides every UI question, README.md has commands and deploy steps.
    and must not use `@cloudflare/workers-types` (it overrides DOM types).
 8. Windows: Vite's dependency scanner misreads `<script` inside comments and a
    line starting with `import:` in `.astro` frontmatter — avoid both.
+9. Import packages by name (`lucide-static/icons/x.svg?raw`), never by a
+   `/node_modules/...` path: npm workspaces hoist them to the repo root.
+10. Map dot sizes are CSS (`r: calc(var(--r) * 1px / var(--z))`); give new dots a
+   `--r` and the `map-dot` class, or they will grow when zoomed.

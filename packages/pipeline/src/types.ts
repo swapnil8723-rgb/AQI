@@ -151,6 +151,8 @@ export interface CityBundle {
   hours: HourPoint[];
   days: DayPoint[];
   bulletin: BundleBulletin | null;
+  /** CPCB's bulletin value on the same calendar day last year. */
+  lastYear?: DayPoint | null;
   stations: BundleStation[];
 }
 
@@ -173,6 +175,8 @@ export interface LiteStation {
   c: string;
   /** launch-city slug */
   s: string | null;
+  /** anchor on the city page ("station-anand-vihar"), launch cities only */
+  h: string | null;
   la: number;
   lo: number;
   a: number | null;
@@ -193,7 +197,7 @@ export interface Bundle {
   v: 1;
   generatedAt: string;
   /** Set only on local development fixtures (scripts/fixture.ts). */
-  fixture?: { builtFrom: string; shiftedMinutes: number };
+  fixture?: { builtFrom: string; shiftedDays: number };
   accuracy?: Accuracy | null;
   /** Newest station update in the feed (ISO UTC). */
   feedAt: string | null;

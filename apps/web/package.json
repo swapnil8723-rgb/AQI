@@ -8,7 +8,7 @@
     "build": "astro build",
     "preview": "astro preview --host 127.0.0.1",
     "check": "astro check",
-    "seed": "wrangler kv key put bundle:v1 --path=src/fixtures/bundle.json --binding=KV --local",
+    "seed": "wrangler kv key put bundle:v1 --path=src/fixtures/bundle.json --binding=KV --local && wrangler kv key put replay:30d --path=src/fixtures/replay-30d.json --binding=KV --local",
     "deploy": "node scripts/check-site-url.mjs && astro build && wrangler deploy",
     "build:prod": "node scripts/check-site-url.mjs && astro build"
   },

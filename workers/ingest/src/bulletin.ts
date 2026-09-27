@@ -9,8 +9,8 @@ import {
 } from '@saans/pipeline';
 import { extractText, getDocumentProxy } from 'unpdf';
 import { telegram } from './alert.ts';
-import { accuracy, bulletinDays, latestBulletins } from './db.ts';
-import { BUNDLE_KEY, userAgent, type Env } from './env.ts';
+import { accuracy, bulletinDays, latestBulletins, replay30 } from './db.ts';
+import { BUNDLE_KEY, REPLAY_KEY, userAgent, type Env } from './env.ts';
 
 export const RECONCILE_TOLERANCE = 0.1;
 
@@ -92,5 +92,7 @@ export async function bulletinJob(env: Env, date: string, final: boolean): Promi
     }
     await env.KV.put(BUNDLE_KEY, JSON.stringify(bundle));
   }
+  // The home map's 30-day replay of official values, refreshed with each bulletin.
+  await env.KV.put(REPLAY_KEY, JSON.stringify(await replay30(env.DB, date)));
   return { status: 'stored', cities: bulletin.rows.length, reconciled };
 }

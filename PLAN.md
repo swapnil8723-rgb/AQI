@@ -484,3 +484,15 @@ Built as a monorepo (see README.md). Facts below were **verified**, not assumed;
 **Measured (production build, local workerd):** JS ≈ 6 KB gz/page, CSS 8.2 KB gz, typical city page 60–65 KB HTML (13–15 KB gz); Delhi (44 stations) 100 KB (21 KB gz); home 102 KB (28 KB gz); render 24–40 ms; AQI number above the fold at 360×640; no horizontal scroll at 360 px.
 
 **Still yours to decide or do:** brand and domain; a data.gov.in API key; the Cloudflare account steps in README.md; GRAP status from CAQM (hidden until curated); a copy review of the verdict card's mask row (CPCB's health statements do not mention masks; the Health Ministry advisory URLs were 404 when checked); AdSense and analytics IDs.
+
+### 16.1 Round 2 (27 Sep 2026, after review of the first build)
+
+| Feedback | Change |
+|---|---|
+| "Need zoom in and out on the map" | Zoom/pan on both maps with no map library (~3 KB). The India map adds **semantic zoom**: every CPCB station past 2.5×, AQI numbers in the pins past 5×. City maps show numbers in pins and a live scale bar. |
+| "Search looks very black" | Palette rebuilt: lifted surface in dark mode (#1A1A1A on a blurred page), content-height, grouped results (cities · stations & areas · other CPCB cities), recent and popular cities, "Use my location" inside it, tighter matching ("gur" no longer returns Bengaluru). Home search is one large light field; "Use my location" is a secondary pill. Dark cards lifted to #111. |
+| "Share option in city looks black" | Share is a soft wash of the city's own air colour and opens a share sheet: live preview, Post 4:5 / Status 9:16, English / Hindi, share image, WhatsApp, copy link, download. |
+| "Something off with the dates" | Root cause: the dev data shifted the live reading to *now* but left the bulletin and 30-day strip on 25 Sep. The fixture now moves whole days and only shows a bulletin CPCB would already have published. In the product: the map heading shows date + time + age; station times from another day carry the date; FAQ and share-card dates come from the reading, not the clock. |
+| "Do something innovative" | **Replay of CPCB's official daily AQI** for every city (30 days, and Diwali 2025 from the backfill) · **same day last year** on every city page · **station/area search** · semantic zoom to all ~490 stations. |
+
+Also found and fixed: every icon rendered empty since the first build (a `/node_modules` glob inside a hoisted workspace); share previews could show a stale card after quick toggles (now sequence-guarded).

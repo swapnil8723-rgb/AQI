@@ -69,7 +69,7 @@ for (const p of ['/aqi/atlantis', '/nope']) {
   else console.log(`  ✓ ${p} → 404`);
 }
 
-for (const p of ['/api/stations.json', '/api/stations/delhi.geojson', '/api/here', '/sitemap.xml', '/robots.txt']) {
+for (const p of ['/api/stations.json', '/api/stations/delhi.geojson', '/api/here', '/api/search.json', '/api/replay.json', '/replay/diwali-2025.json', '/sitemap.xml', '/robots.txt']) {
   const { res, body } = await get(p);
   if (res.status !== 200 || body.length < 20) fail(`${p} → ${res.status}`);
   else console.log(`  ✓ ${p} ${(body.length / 1024).toFixed(0)} KB`);

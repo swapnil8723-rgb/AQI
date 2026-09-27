@@ -17,13 +17,15 @@ import StationsTable from '../components/StationsTable.astro';
 import PollutantRows from '../components/PollutantRows.astro';
 import GrapSection from '../components/GrapSection.astro';
 import CityChips from '../components/CityChips.astro';
-import ShareButton, { type ShareData } from '../components/ShareButton.astro';
+import ShareButton from '../components/ShareButton.astro';
+import ShareSheet, { type ShareCard, type CardText } from '../components/ShareSheet.astro';
 import AdSlot from '../components/AdSlot.astro';
 import Faq from '../components/Faq.astro';
 import NearestChip from '../components/NearestChip.astro';
 import { t, localePath, type Lang } from '../i18n/index.ts';
 import { CATEGORY_LABEL, catLabel, freshness, slotN, slotU, usLabel } from '../lib/aqi-ui.ts';
-import { istTime, longDate, todayIst } from '../lib/format.ts';
+import { istTime, longDate, shortDate, todayIst } from '../lib/format.ts';
+import { istDate } from '@saans/pipeline';
 import { SITE } from '../lib/site.ts';
 import type { Bundle } from '../lib/bundle.ts';
 
@@ -74,13 +76,18 @@ const description = live
 const origin = Astro.site?.origin ?? SITE.origin;
 const url = new URL(localePath(lang, `/aqi/${city.slug}`), origin).href;
 
+// "10:00 IST" today, "26 Sep, 10:00 IST" otherwise — a bare time from another day misleads.
+const liveDay = live ? istDate(live.at) : '';
+const whenEn = live ? `${liveDay === todayIst() ? '' : `${shortDate(liveDay, 'en')}, `}${istTime(live.at)} IST` : '';
+const whenHi = live ? `${liveDay === todayIst() ? 'आज' : shortDate(liveDay, 'hi')} ${istTime(live.at)} बजे` : '';
+
 // FAQ: true, data-driven answers only (PLAN.md §5.2 item 12).
 const faq: { q: string; a: string }[] = [];
 if (live) {
   faq.push(
     lang === 'hi'
-      ? { q: `${name} का AQI अभी कितना है?`, a: `${istTime(live.at)} बजे ${name} का लाइव अनुमान ${live.aqi} (${catWord}) है — ${live.total} में से ${live.valid} CPCB स्टेशनों का औसत।${bul ? ` ${longDate(bul.date, lang)} के आधिकारिक CPCB बुलेटिन (शाम 4 बजे) में ${bul.aqi} (${catLabel(bul.aqi, lang)}) था।` : ''}` }
-      : { q: `What is ${name}'s AQI right now?`, a: `${name}'s live estimate is ${live.aqi} (${catWord}) at ${istTime(live.at)} IST, the average of ${live.valid} of ${live.total} CPCB stations.${bul ? ` CPCB's official 4 PM bulletin for ${longDate(bul.date, lang)} was ${bul.aqi} (${catLabel(bul.aqi, lang)}).` : ''}` },
+      ? { q: `${name} का AQI अभी कितना है?`, a: `${whenHi} ${name} का लाइव अनुमान ${live.aqi} (${catWord}) है — ${live.total} में से ${live.valid} CPCB स्टेशनों का औसत।${bul ? ` ${longDate(bul.date, lang)} के आधिकारिक CPCB बुलेटिन (शाम 4 बजे) में ${bul.aqi} (${catLabel(bul.aqi, lang)}) था।` : ''}` }
+      : { q: `What is ${name}'s AQI right now?`, a: `${name}'s live estimate is ${live.aqi} (${catWord}) at ${whenEn}, the average of ${live.valid} of ${live.total} CPCB stations.${bul ? ` CPCB's official 4 PM bulletin for ${longDate(bul.date, lang)} was ${bul.aqi} (${catLabel(bul.aqi, lang)}).` : ''}` },
   );
   if (worst && cleanest && worst.id !== cleanest.id) {
     const top3 = valid.slice(0, 3).map((s) => `${s.place} (${s.aqi})`).join(', ');
@@ -108,29 +115,43 @@ if (live) {
   }
 }
 
-const share: ShareData | null = live
-  ? {
-      city: name,
-      cityAlt: nameAlt,
-      aqi: live.aqi,
-      us: live.us,
-      cat: catWord,
-      catAlt: CATEGORY_LABEL[category!][lang === 'hi' ? 'en' : 'hi'],
-      catUs: live.us !== null ? usLabel(live.us, lang) : '',
-      slot: slotN(live.aqi),
-      slotUs: slotU(live.us),
-      main: dom(live.dominant),
-      worst: worst ? `${worst.place} ${worst.aqi}` : null,
-      cleanest: cleanest && worst && cleanest.id !== worst.id ? `${cleanest.place} ${cleanest.aqi}` : null,
-      date: `${longDate(todayIst(), lang)} · ${istTime(live.at)} IST`,
-      url,
-      brand: SITE.name,
-      live: d.hero.live,
-      text: d.share.text(name, live.aqi, catWord, url),
-      mainLabel: d.hero.main,
-      worstLabel: lang === 'hi' ? 'सबसे खराब इलाका' : 'Worst area',
-      cleanestLabel: lang === 'hi' ? 'सबसे साफ़' : 'Cleanest',
-    }
+// Share card data, in both languages (the sheet can switch).
+const hourVals: (number | null)[] = (() => {
+  if (!cb?.hours.length) return [];
+  const end = Date.parse(axisEnd);
+  return Array.from({ length: 24 }, (_, i) => {
+    const t0 = end - (23 - i) * 3600_000;
+    return cb.hours.find((h) => Math.abs(Date.parse(h.t) - t0) < 60_000)?.aqi ?? null;
+  });
+})();
+function cardText(l: Lang): CardText {
+  const dl = t(l);
+  const nm = l === 'hi' ? city.hi : city.en;
+  const cw = live ? catLabel(live.aqi, l) : '';
+  const u = new URL(localePath(l, `/aqi/${city.slug}`), origin).href;
+  return {
+    city: nm,
+    cat: cw,
+    catAlt: live ? CATEGORY_LABEL[category!][l === 'hi' ? 'en' : 'hi'] : '',
+    catUs: live && live.us !== null ? usLabel(live.us, l) : '',
+    live: dl.hero.live,
+    date: live ? `${shortDate(istDate(live.at), l)} ${live.at.slice(0, 4)} · ${istTime(live.at)} IST` : '',
+    main: live ? dom(live.dominant) : '',
+    mainLabel: dl.hero.main,
+    worst: worst ? `${worst.place} · ${worst.aqi}` : null,
+    worstLabel: l === 'hi' ? 'सबसे खराब इलाका' : 'Worst area',
+    cleanest: cleanest && worst && cleanest.id !== worst.id ? `${cleanest.place} · ${cleanest.aqi}` : null,
+    cleanestLabel: l === 'hi' ? 'सबसे साफ़ इलाका' : 'Cleanest area',
+    official: bul ? `${dl.hero.official} (${shortDate(bul.date, l)}, 4 PM): ${bul.aqi}` : null,
+    lastYear: cb?.lastYear ? (l === 'hi' ? `पिछले साल आज (CPCB): ${cb.lastYear.aqi} · ${catLabel(cb.lastYear.aqi, l)}` : `Same day last year (CPCB): ${cb.lastYear.aqi} · ${catLabel(cb.lastYear.aqi, l)}`) : null,
+    hoursLabel: dl.hours.title,
+    scaleLine: l === 'hi' ? 'राष्ट्रीय AQI · CPCB स्टेशन' : 'NATIONAL AQI · CPCB STATIONS',
+    usLine: l === 'hi' ? 'अमेरिकी EPA पैमाना (तुलना के लिए)' : 'US EPA SCALE (FOR COMPARISON)',
+    text: live ? dl.share.text(nm, live.aqi, cw, u) : u,
+  };
+}
+const share: ShareCard | null = live
+  ? { aqi: live.aqi, us: live.us, slot: slotN(live.aqi), slotUs: slotU(live.us), url, brand: SITE.name, hours: hourVals, en: cardText('en'), hi: cardText('hi') }
   : null;
 
 const jsonLd = [
@@ -166,11 +187,11 @@ const nearby = nearbyCities(city.slug, 6);
     </nav>
     <div class="flex flex-wrap items-end justify-between gap-3 mt-1 mb-4 md:mb-6">
       <h1 class="t-h1">{lang === 'hi' ? `${name} AQI आज` : `${name} AQI today`} <span class="t-h3 font-normal text-[var(--color-fg-subtle)]" lang={lang === 'hi' ? 'en' : 'hi'}>{nameAlt}</span></h1>
-      <div class="hidden lg:block"><ShareButton lang={lang} data={share} /></div>
+      {share && <div class="hidden lg:block"><ShareButton lang={lang} slot={slotN(live?.aqi)} /></div>}
     </div>
 
     <div class="grid grid-cols-1 gap-4 md:gap-6 lg:grid-cols-12">
-      <div class="lg:col-span-7"><AqiHero lang={lang} name={name} now={now} bulletin={cb?.bulletin ?? null} usRange={usRange} lastHour={lastHour} /></div>
+      <div class="lg:col-span-7"><AqiHero lang={lang} name={name} now={now} bulletin={cb?.bulletin ?? null} lastYear={cb?.lastYear ?? null} usRange={usRange} lastHour={lastHour} /></div>
       <div class="lg:col-span-5"><VerdictCard lang={lang} category={category} bulletinUrl={cb?.bulletin?.url} /></div>
       <div class="lg:col-span-12"><NearestChip lang={lang} /></div>
       {cb && cb.hours.length > 0 && <div class="lg:col-span-12"><HourBars lang={lang} hours={cb.hours} end={axisEnd} /></div>}
@@ -184,10 +205,10 @@ const nearby = nearbyCities(city.slug, 6);
       <div class="lg:col-span-12"><AdSlot slot="city-1" /></div>
       {city.ncr && <div class="lg:col-span-7"><GrapSection lang={lang} /></div>}
       <div class="lg:col-span-12"><CityChips lang={lang} cities={nearby} bundle={bundle} /></div>
-      <div class="lg:col-span-12 lg:hidden"><ShareButton lang={lang} data={share} /></div>
+      {share && <div class="lg:col-span-12 lg:hidden"><ShareButton lang={lang} slot={slotN(live?.aqi)} class="w-full" /></div>}
       <div class="lg:col-span-12"><AdSlot slot="city-2" /></div>
       <div class="lg:col-span-8"><Faq lang={lang} items={faq} /></div>
     </div>
-    {share && <script type="application/json" id="share-data" set:html={JSON.stringify(share)} />}
+    {share && <ShareSheet lang={lang} card={share} />}
   </div>
 </Base>

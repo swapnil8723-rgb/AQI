@@ -27,6 +27,8 @@ export interface BundleInputs {
   days?: Record<string, DayPoint[]>;
   /** Most recent bulletin value per launch city. */
   bulletins?: Record<string, BundleBulletin>;
+  /** Bulletin value on the same day last year, per launch city. */
+  lastYear?: Record<string, DayPoint>;
   accuracy?: Accuracy | null;
   now?: Date;
 }
@@ -75,6 +77,7 @@ export function buildCity(city: City, stations: Station[], inputs: BundleInputs)
     hours: inputs.hours?.[city.slug] ?? [],
     days: inputs.days?.[city.slug] ?? [],
     bulletin: inputs.bulletins?.[city.slug] ?? null,
+    lastYear: inputs.lastYear?.[city.slug] ?? null,
     stations: sorted.map((s) => toBundleStation(s, anchors.get(s.id)!)),
   };
 }
@@ -110,10 +113,13 @@ export function buildBundle(inputs: BundleInputs): Bundle {
   }
   map.sort((a, b) => a.name.localeCompare(b.name));
 
+  const anchorOf = new Map<string, string>();
+  for (const c of Object.values(cities)) for (const st of c.stations) anchorOf.set(st.id, st.anchor);
   const lite: LiteStation[] = stations.map((s) => ({
     p: s.place,
     c: s.city,
     s: s.citySlug,
+    h: anchorOf.get(s.id) ?? null,
     la: round(s.lat, 4),
     lo: round(s.lon, 4),
     a: s.valid ? s.aqi : null,

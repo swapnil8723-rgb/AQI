@@ -64,6 +64,17 @@
 :root[data-theme="light"] { color-scheme: light; }
 
 /*
+ * Surfaces. In dark mode, cards and overlays sit a step above the page
+ * (#111 cards, #1A1A1A overlays and inputs — DESIGN.md's own dark tokens) so
+ * the search, share sheet and map cards never read as black holes.
+ */
+:root { --surface-card: var(--color-bg); --surface-raised: var(--color-bg); --surface-input: var(--color-bg-subtle); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --surface-card: var(--color-bg-subtle); --surface-raised: var(--color-bg-muted); --surface-input: var(--color-bg-muted); }
+}
+:root[data-theme="dark"] { --surface-card: var(--color-bg-subtle); --surface-raised: var(--color-bg-muted); --surface-input: var(--color-bg-muted); }
+
+/*
  * Category colour slots. A component sets the category once; children read
  * --aqi-fill / --aqi-on / --aqi-ink. `data-aqi` is the NAQI category;
  * `data-aqi-us` is the US EPA category mapped onto the same six slots, and
@@ -131,8 +142,8 @@ a { color: inherit; text-underline-offset: 3px; }
 
 /* ── Surfaces (DESIGN.md §6: shadow-as-border) ── */
 .ring-1px  { box-shadow: var(--shadow-ring); }
-.card      { background: var(--color-bg); box-shadow: var(--shadow-card); border-radius: var(--radius-md); }
-.raised    { background: var(--color-bg); box-shadow: var(--shadow-raised); border-radius: var(--radius-md); }
+.card      { background: var(--surface-card); box-shadow: var(--shadow-card); border-radius: var(--radius-md); }
+.raised    { background: var(--surface-raised); box-shadow: var(--shadow-raised); border-radius: var(--radius-md); }
 .hairline-b { box-shadow: inset 0 -1px 0 var(--color-ring); }
 .hairline-t { box-shadow: inset 0 1px 0 var(--color-ring); }
 
@@ -147,14 +158,14 @@ a { color: inherit; text-underline-offset: 3px; }
 .btn::after { content: ""; position: absolute; inset: -2px; min-height: 44px; min-width: 44px; } /* 44px hit area */
 .btn-primary { background: var(--color-fg); color: var(--color-bg); }
 .btn-primary:hover { opacity: .88; }
-.btn-secondary { background: var(--color-bg); color: var(--color-fg); box-shadow: var(--shadow-ring); }
+.btn-secondary { background: var(--surface-card); color: var(--color-fg); box-shadow: var(--shadow-ring); }
 .btn-secondary:hover { box-shadow: 0 0 0 1px var(--color-ring-strong); background: var(--color-bg-subtle); }
 .btn-ghost { background: transparent; color: var(--color-fg); }
 .btn-ghost:hover { background: var(--color-bg-muted); }
 .btn[disabled] { opacity: .6; cursor: progress; }
 .input {
   height: 40px; width: 100%; border-radius: var(--radius-sm); padding: 0 12px;
-  background: var(--color-bg-subtle); box-shadow: var(--shadow-ring); color: var(--color-fg);
+  background: var(--surface-input); box-shadow: var(--shadow-ring); color: var(--color-fg);
   font-size: 16px; outline: none;
 }
 .input::placeholder { color: var(--color-fg-subtle); }
@@ -172,14 +183,35 @@ a { color: inherit; text-underline-offset: 3px; }
 .fresh-dot[data-state="stale"] { background: var(--color-fg-subtle); }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
 
-/* Map dots (IndiaMap, StationMap): styled here so each dot carries no inline style. */
+/*
+ * Map dots (IndiaMap, StationMap). Radii live in CSS as calc(--r / --z): the
+ * zoom script sets --z, so dots keep their screen size and spread apart as
+ * you zoom in. The r attribute is only a fallback for no-CSS.
+ */
 [data-map] { container-type: inline-size; }
 [data-map] a { outline: none; }
-.map-dot { fill: var(--aqi-fill); stroke: var(--color-bg); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.map-dot { fill: var(--aqi-fill); stroke: var(--color-bg); stroke-width: 2; vector-effect: non-scaling-stroke; r: calc(var(--r, 6) * 1px / var(--z, 1)); transition: fill 250ms var(--ease-out); }
 .map-dot.thin { stroke-width: 1; }
-.ctx-dot { fill: var(--aqi-fill); opacity: .85; }
-.severe-ring { fill: none; stroke: var(--color-severe); stroke-opacity: .3; stroke-width: 3; vector-effect: non-scaling-stroke; }
+.hit { fill: transparent; r: calc(var(--r, 12) * 1px / var(--z, 1)); }
+.ctx-dot { fill: var(--aqi-fill); opacity: .85; r: calc(var(--r, 3) * 1px / var(--z, 1)); }
+.severe-ring { fill: none; stroke: var(--color-severe); stroke-opacity: .3; stroke-width: 3; vector-effect: non-scaling-stroke; r: calc(var(--r, 9) * 1px / var(--z, 1)); }
 [data-map] a:focus-visible .map-dot, [data-map] a[aria-current] .map-dot { stroke: var(--color-fg); stroke-width: 4; }
+/* India map layers by zoom: the NCR inset gives way to real positions; stations appear. */
+[data-india] .ncr-main { display: none; }
+[data-india][data-deep] .ncr-main { display: inline; }
+[data-india][data-deep] .ncr-inset, [data-india][data-deep] .city-layer, [data-india][data-deep] .lbl-inset { display: none; }
+[data-india]:not([data-deep]) [data-station-layer] { display: none; }
+[data-india] .lbl-minor { display: none; }
+[data-india][data-zoomed] .lbl-minor { display: block; }
+.st-dot { --r: 4.5; }
+/* Deep zoom: station pins with their number, fixed on screen (12 px radius, 10 px text). */
+[data-deeper] .st-dot { r: calc(12px / (var(--z, 1) * var(--s, 1))); }
+.st-num { display: none; font-family: var(--font-mono); font-size: calc(9.5px / (var(--z, 1) * var(--s, 1))); font-weight: 600; text-anchor: middle; dominant-baseline: central; fill: var(--aqi-on); pointer-events: none; }
+[data-deeper] .st-num { display: inline; }
+[data-india][data-mode="replay"] .live-layer, [data-india][data-mode="replay"] .lbl-inset { display: none; }
+.map-ctl { display: grid; place-items: center; width: 36px; height: 36px; border-radius: var(--radius-sm); background: var(--surface-raised); box-shadow: var(--shadow-card); color: var(--color-fg); cursor: pointer; transition: background-color 150ms var(--ease-out); }
+.map-ctl:hover { background: var(--color-bg-muted); }
+[data-map]:not([data-zoomed]) .map-ctl-reset { opacity: .45; }
 
 /* Horizontal chip scrollers keep their scrollbar (DESIGN.md §4.9: discoverable) */
 .chips { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 6px; }
@@ -203,3 +235,31 @@ a { color: inherit; text-underline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* Search palette */
+.palette { background: var(--surface-raised); box-shadow: var(--shadow-raised); }
+@media (min-width: 40rem) { .palette { border-radius: var(--radius-lg); } }
+.palette input:focus-visible { outline: none; }
+.palette::backdrop { background: rgb(0 0 0 / .42); backdrop-filter: blur(3px); }
+.pal-row[aria-selected="true"] { background: color-mix(in oklab, var(--color-fg) 7%, transparent); }
+.pal-ico { background: color-mix(in oklab, var(--color-fg) 6%, transparent); }
+
+/* Big search field (home) */
+.search-hero { height: 56px; border-radius: var(--radius-md); background: var(--surface-input); box-shadow: var(--shadow-ring); }
+.search-hero:hover { box-shadow: 0 0 0 1px var(--color-ring-strong); }
+.search-hero:focus-within { box-shadow: var(--shadow-ring), 0 0 0 3px color-mix(in oklab, var(--color-link) 35%, transparent); }
+
+/*
+ * Tinted button: the city's own air colour as a soft wash (DESIGN.md §2.2
+ * "tinted washes"), for Share — friendlier than a black primary button.
+ */
+.btn-tint { background: color-mix(in oklab, var(--aqi-fill) 18%, var(--surface-card)); color: var(--color-fg); box-shadow: 0 0 0 1px color-mix(in oklab, var(--aqi-fill) 60%, transparent); }
+.btn-tint:hover { background: color-mix(in oklab, var(--aqi-fill) 28%, var(--surface-card)); }
+
+/* Share sheet */
+.sheet { background: var(--surface-raised); box-shadow: var(--shadow-raised); }
+@media (min-width: 40rem) { .sheet { border-radius: var(--radius-lg); } }
+.sheet::backdrop { background: rgb(0 0 0 / .42); backdrop-filter: blur(3px); }
+.seg { display: inline-flex; padding: 2px; border-radius: var(--radius-sm); box-shadow: var(--shadow-ring); background: var(--surface-input); }
+.seg button { height: 30px; padding: 0 12px; border-radius: 4px; font-size: 13px; color: var(--color-fg-muted); }
+.seg button[aria-pressed="true"] { background: var(--surface-card); color: var(--color-fg); box-shadow: var(--shadow-ring); }

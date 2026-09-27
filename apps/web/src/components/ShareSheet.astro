@@ -1,0 +1,97 @@
+---
+/**
+ * Share sheet: a live preview of the image card, drawn in the browser
+ * (scripts/share.ts) — Post (4:5) or WhatsApp Status (9:16), in English or
+ * Hindi — then share the image, send on WhatsApp, copy the link or download.
+ * No server rendering, so sharing costs nothing at any scale.
+ */
+import { t, type Lang } from '../i18n/index.ts';
+
+export interface CardText {
+  city: string;
+  cat: string;
+  catAlt: string;
+  catUs: string;
+  live: string;
+  date: string;
+  main: string;
+  mainLabel: string;
+  worst: string | null;
+  worstLabel: string;
+  cleanest: string | null;
+  cleanestLabel: string;
+  official: string | null;
+  lastYear: string | null;
+  hoursLabel: string;
+  scaleLine: string;
+  usLine: string;
+  text: string;
+}
+
+export interface ShareCard {
+  aqi: number;
+  us: number | null;
+  slot: string;
+  slotUs: string;
+  url: string;
+  brand: string;
+  hours: (number | null)[];
+  en: CardText;
+  hi: CardText;
+}
+
+interface Props {
+  lang: Lang;
+  card: ShareCard;
+}
+const { lang, card } = Astro.props;
+const d = t(lang);
+const hi = lang === 'hi';
+const L = {
+  title: d.share.button,
+  post: hi ? 'पोस्ट' : 'Post',
+  status: hi ? 'स्टेटस' : 'Status',
+  shareImage: hi ? 'तस्वीर शेयर करें' : 'Share image',
+  copy: hi ? 'लिंक कॉपी करें' : 'Copy link',
+  copied: hi ? 'कॉपी हो गया' : 'Copied',
+  download: hi ? 'डाउनलोड' : 'Download',
+  close: hi ? 'बंद करें' : 'Close',
+  note: hi ? 'तस्वीर आपके फ़ोन पर ही बनती है।' : 'The image is made on your phone.',
+};
+---
+<dialog class="sheet m-0 mt-auto w-full max-w-none max-h-[92dvh] rounded-t-[12px] sm:m-auto sm:w-[560px] sm:max-h-[90vh] p-0 text-[var(--color-fg)]" data-share-sheet aria-label={L.title}>
+  <div class="flex flex-col max-h-[92dvh] sm:max-h-[90vh]">
+    <div class="flex items-center gap-3 px-5 h-14 shrink-0 hairline-b">
+      <p class="t-h3 flex-1">{L.title}</p>
+      <button type="button" class="btn btn-ghost px-2! t-small" data-share-close aria-label={L.close}>✕</button>
+    </div>
+    <div class="overflow-y-auto px-5 py-4 grid gap-4 sm:grid-cols-[200px_1fr] items-start">
+      <div class="rounded-[8px] overflow-hidden ring-1px bg-[var(--color-bg-subtle)] mx-auto w-[180px] sm:w-[200px]">
+        <img alt="" class="block w-full h-auto" data-share-preview width="200" height="250" />
+      </div>
+      <div class="flex flex-col gap-3">
+        <div class="flex flex-wrap gap-2">
+          <div class="seg" role="group" aria-label="Format">
+            <button type="button" data-share-format="post" aria-pressed="true">{L.post} 4:5</button>
+            <button type="button" data-share-format="status" aria-pressed="false">{L.status} 9:16</button>
+          </div>
+          <div class="seg" role="group" aria-label="Language">
+            <button type="button" data-share-lang="en" aria-pressed={lang === 'en' ? 'true' : 'false'}>English</button>
+            <button type="button" data-share-lang="hi" aria-pressed={lang === 'hi' ? 'true' : 'false'} class="deva">हिंदी</button>
+          </div>
+        </div>
+        <button type="button" class="btn btn-tint w-full" data-aqi={card.slot} data-share-image autofocus>{L.shareImage}</button>
+        <div class="grid grid-cols-3 gap-2">
+          <a class="btn btn-secondary px-2! t-small" href={`https://wa.me/?text=${encodeURIComponent(card[lang].text)}`} target="_blank" rel="noopener" data-share-wa>WhatsApp</a>
+          <button type="button" class="btn btn-secondary px-2! t-small" data-share-copy data-copied={L.copied}>{L.copy}</button>
+          <button type="button" class="btn btn-secondary px-2! t-small" data-share-download>{L.download}</button>
+        </div>
+        <p class="t-small text-[var(--color-fg-subtle)]">{L.note}</p>
+      </div>
+    </div>
+  </div>
+  <script type="application/json" data-share-card set:html={JSON.stringify(card)} />
+</dialog>
+<script>
+  import '../scripts/share.ts';
+</script>

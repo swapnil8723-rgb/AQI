@@ -3,7 +3,7 @@ import { POLLUTANT_LABEL, type Pollutant } from '@saans/aqi';
 import { t, localePath, type Lang } from '../i18n/index.ts';
 import { CATEGORY_LABEL, catLabel, freshness, slotN, slotU, usLabel } from '../lib/aqi-ui.ts';
 import { istTime, shortDate, todayIst } from '../lib/format.ts';
-import type { BundleBulletin, CityNow, HourPoint } from '../lib/bundle.ts';
+import type { BundleBulletin, CityNow, DayPoint, HourPoint } from '../lib/bundle.ts';
 import FreshnessBadge from './FreshnessBadge.astro';
 import ScaleToggle from './ScaleToggle.astro';
 
@@ -12,10 +12,12 @@ interface Props {
   name: string;
   now: CityNow | null;
   bulletin: BundleBulletin | null;
+  /** CPCB's bulletin value on this calendar day last year. */
+  lastYear?: DayPoint | null;
   usRange: [number, number] | null;
   lastHour: HourPoint | null;
 }
-const { lang, name, now, bulletin, usRange, lastHour } = Astro.props;
+const { lang, name, now, bulletin, lastYear = null, usRange, lastHour } = Astro.props;
 const d = t(lang);
 const state = freshness(now?.at);
 // PLAN.md §3.5: stale (> 6 h) hides the big number; the last value goes in small text.
@@ -75,6 +77,13 @@ const lastKnown = now ?? lastHour;
     <p class="t-small font-medium">
       <a href={bulletin.url} class="hover:underline" rel="noopener" target="_blank">
         {d.hero.official} ({bulletinWhen(bulletin.date)}): <span class="font-mono tabular">{bulletin.aqi}</span> · {catLabel(bulletin.aqi, lang)} <span aria-hidden="true">↗</span>
+      </a>
+    </p>
+  )}
+  {lastYear && (
+    <p class="t-small mt-1 opacity-85">
+      <a href={`https://cpcb.gov.in/upload/Downloads/AQI_Bulletin_${lastYear.d.replaceAll('-', '')}.pdf`} class="hover:underline" rel="noopener" target="_blank">
+        {lang === 'hi' ? 'पिछले साल आज' : 'Same day last year'} ({shortDate(lastYear.d, lang)} {lastYear.d.slice(0, 4)}, CPCB): <span class="font-mono tabular">{lastYear.aqi}</span> · {catLabel(lastYear.aqi, lang)}
       </a>
     </p>
   )}

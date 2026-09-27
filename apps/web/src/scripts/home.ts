@@ -126,6 +126,16 @@ document.querySelectorAll<HTMLButtonElement>('[data-locate-trigger]').forEach((b
   }),
 );
 
+// Arrived from the search palette's "Use my location": the tap was theirs, so locate now.
+try {
+  if (sessionStorage.getItem('locateNow')) {
+    sessionStorage.removeItem('locateNow');
+    void useLocation(document.querySelector<HTMLButtonElement>('[data-locate-main]'));
+  }
+} catch {
+  /* ignore */
+}
+
 (async () => {
   // 1. Returning visitor.
   const saved = store('city');

@@ -1,17 +1,19 @@
 ---
 /**
  * Home map (DESIGN.md §4.16, PLAN.md §5.3 A): India's official boundary,
- * pre-projected at build time (0 KB map JS). Launch cities are <a> links;
- * every other CPCB city is a small context dot. Delhi-NCR sits in a 4× inset
- * so its six neighbouring cities stay tappable.
+ * pre-projected at build time. Works with JS off (every city dot is a link).
+ * With JS (scripts/indiamap.ts): zoom and pan; zoom in past 2.5× and every
+ * CPCB station appears with its live AQI; and a replay of CPCB's official
+ * daily AQI (last 30 days, Diwali 2025).
  */
 import { CITIES } from '@saans/data';
 import { t, localePath, type Lang } from '../i18n/index.ts';
 import { CATEGORY_LABEL, NAQI_ROWS, US_ROWS, US_LABEL, catLabel, slotN, slotU } from '../lib/aqi-ui.ts';
-import MapCardLabels from './MapCardLabels.astro';
 import { relative } from '../lib/format.ts';
 import { INDIA, projectIndia, projectNcr, r1 } from '../lib/map.ts';
 import type { Bundle } from '../lib/bundle.ts';
+import MapCardLabels from './MapCardLabels.astro';
+import MapControls from './MapControls.astro';
 
 interface Props {
   lang: Lang;
@@ -21,8 +23,7 @@ const { lang, bundle } = Astro.props;
 const d = t(lang);
 const W = INDIA.width;
 const H = INDIA.height;
-// Inset: a 4× circle over Tibet, just north-east of Delhi and clear of India's
-// boundary, so the leader line is short (DESIGN.md §4.16: 120 px).
+// Inset: a 4× circle over Tibet, north-east of Delhi and off Indian territory (DESIGN.md §4.16).
 const INSET = { cx: 332, cy: 84, r: 52 };
 const s = INSET.r / INDIA.ncr.r;
 const [delhiX, delhiY] = projectIndia(28.62, 77.2);
@@ -35,10 +36,13 @@ const lead = (() => {
 
 const launch = CITIES.filter((c) => c.live).map((c) => {
   const now = bundle?.cities[c.slug]?.now ?? null;
-  const [x, y] = c.ncr ? projectNcr(c.lat, c.lon) : projectIndia(c.lat, c.lon);
+  const [mx, my] = projectIndia(c.lat, c.lon);
+  const [ix, iy] = projectNcr(c.lat, c.lon);
   const n = now?.total ?? 1;
   return {
-    c, now, x: r1(c.ncr ? INSET.cx - INSET.r + x * s : x), y: r1(c.ncr ? INSET.cy - INSET.r + y * s : y),
+    c, now,
+    mx: r1(mx), my: r1(my),
+    ix: r1(INSET.cx - INSET.r + ix * s), iy: r1(INSET.cy - INSET.r + iy * s),
     r: r1(6 + 6 * Math.min(1, Math.log(Math.max(1, n)) / Math.log(40))),
   };
 });
@@ -50,60 +54,129 @@ const context = (bundle?.map ?? [])
     return { m, x: r1(x), y: r1(y) };
   })
   .sort((a, b) => (a.m.aqi ?? 0) - (b.m.aqi ?? 0));
-/** The 8 largest cities are labelled; the side keeps labels off their neighbours. */
-const LABELS: Record<string, 'l' | 'r'> = { mumbai: 'l', bengaluru: 'l', ahmedabad: 'l', jaipur: 'l', kolkata: 'r', chennai: 'r', hyderabad: 'r', lucknow: 'r' };
+/** Always-on labels (the 8 largest cities); the side keeps them off neighbours. The rest appear when zoomed. */
+const MAJOR: Record<string, 'l' | 'r'> = { mumbai: 'l', bengaluru: 'l', ahmedabad: 'l', jaipur: 'l', kolkata: 'r', chennai: 'r', hyderabad: 'r', lucknow: 'r' };
 const name = (c: (typeof CITIES)[number]) => (lang === 'hi' ? c.hi : c.en);
+const dotLink = (c: (typeof CITIES)[number], now: (typeof launch)[number]['now']) => ({
+  href: localePath(lang, `/aqi/${c.slug}`),
+  'data-card': '',
+  'data-n': name(c),
+  'data-v': now?.aqi ?? '',
+  'data-u': now?.us ?? '',
+  'data-s': now ? `${d.hero.live} · ${relative(now.at, lang)}` : '',
+  'aria-label': `${name(c)}, AQI ${now ? `${now.aqi}, ${catLabel(now.aqi, lang)}` : d.insufficient}`,
+});
+const pct = (v: number, of: number) => `${((v / of) * 100).toFixed(2)}%`;
+const mapText = {
+  stationsLoading: lang === 'hi' ? 'स्टेशन लोड हो रहे हैं…' : 'Loading stations…',
+  replay30: lang === 'hi' ? 'पिछले 30 दिन' : 'Last 30 days',
+  replayDiwali: lang === 'hi' ? 'दिवाली 2025' : 'Diwali 2025',
+  replayTitle: lang === 'hi' ? 'हवा को चलते देखें' : 'Watch the air move',
+  replayNote: lang === 'hi' ? 'CPCB का आधिकारिक दैनिक AQI (शाम 4 बजे का बुलेटिन), हर शहर।' : 'CPCB’s official daily AQI (4 PM bulletin), every city.',
+  play: lang === 'hi' ? 'चलाएँ' : 'Play',
+  pause: lang === 'hi' ? 'रोकें' : 'Pause',
+  worst: lang === 'hi' ? 'सबसे खराब' : 'Worst',
+  diwali: lang === 'hi' ? 'दिवाली' : 'Diwali',
+  seeStation: lang === 'hi' ? 'स्टेशन देखें' : 'See station',
+  official: lang === 'hi' ? 'आधिकारिक CPCB' : 'Official CPCB',
+  months: lang === 'hi' ? ['जन॰', 'फ़र॰', 'मार्च', 'अप्रैल', 'मई', 'जून', 'जुलाई', 'अग॰', 'सित॰', 'अक्टू॰', 'नव॰', 'दिस॰'] : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+};
+const hint = lang === 'hi' ? 'ज़ूम: Ctrl + स्क्रॉल, पिंच, या + −' : 'Zoom: Ctrl + scroll, pinch, or + −';
 ---
-<figure class="relative">
-  <div class="relative rounded-[12px] bg-[var(--color-bg-subtle)] ring-1px p-2 sm:p-4" data-map>
-    <svg viewBox={`0 0 ${W} ${H}`} class="block w-full h-auto" role="group" aria-label={d.home.map}>
-      <path d={INDIA.outline} fill="var(--color-bg)" stroke="var(--color-fg-subtle)" stroke-width="1" vector-effect="non-scaling-stroke" stroke-linejoin="round" />
-      <path d={INDIA.borders} fill="none" stroke="var(--color-ring-strong)" stroke-width="0.5" vector-effect="non-scaling-stroke" />
-      <g aria-hidden="true">
-        {context.map(({ m, x, y }) => (
-          <circle cx={x} cy={y} r="3" data-aqi={slotN(m.aqi)} class="ctx-dot">
-            <title>{m.name}: {m.aqi}</title>
-          </circle>
-        ))}
-        {/* NCR cities on the main map: markers only; the links live in the inset. */}
-        {CITIES.filter((c) => c.live && c.ncr).map((c) => {
-          const [x, y] = projectIndia(c.lat, c.lon);
-          const now = bundle?.cities[c.slug]?.now;
-          return <circle cx={r1(x)} cy={r1(y)} r="3.5" data-aqi={slotN(now?.aqi)} data-aqi-us={slotU(now?.us)} class="map-dot thin" />;
-        })}
-        <line x1={delhiX} y1={delhiY} x2={lead.x} y2={lead.y} stroke="var(--color-fg-subtle)" stroke-width="0.75" stroke-dasharray="3 3" vector-effect="non-scaling-stroke" />
-      </g>
-      <defs><clipPath id="ncr-clip"><circle cx={INSET.cx} cy={INSET.cy} r={INSET.r} /></clipPath></defs>
-      <g clip-path="url(#ncr-clip)" aria-hidden="true">
-        <circle cx={INSET.cx} cy={INSET.cy} r={INSET.r} fill="var(--color-bg-subtle)" />
-        <g transform={`translate(${INSET.cx - INSET.r} ${INSET.cy - INSET.r}) scale(${s})`}>
-          <path d={INDIA.ncr.outline} fill="var(--color-bg)" />
-          <path d={INDIA.ncr.borders} fill="none" stroke="var(--color-ring-strong)" stroke-width="1" vector-effect="non-scaling-stroke" />
+<figure class="relative" id="map">
+  <div
+    class="relative rounded-[12px] bg-[var(--color-bg-subtle)] ring-1px p-2 sm:p-4 outline-none overflow-hidden"
+    data-map
+    data-india
+    data-mercator={JSON.stringify(INDIA.mercator)}
+    data-base={localePath(lang, '/aqi/')}
+    tabindex="-1"
+  >
+    <div class="relative">
+      <svg viewBox={`0 0 ${W} ${H}`} class="block w-full h-auto select-none" role="group" aria-label={d.home.map} data-zoom-svg>
+        <path d={INDIA.outline} fill="var(--color-bg)" stroke="var(--color-fg-subtle)" stroke-width="1" vector-effect="non-scaling-stroke" stroke-linejoin="round" />
+        <path d={INDIA.borders} fill="none" stroke="var(--color-ring-strong)" stroke-width="0.5" vector-effect="non-scaling-stroke" />
+
+        <g class="live-layer">
+          <g aria-hidden="true" class="city-layer">
+            {context.map(({ m, x, y }) => (
+              <circle cx={x} cy={y} style="--r:3" data-aqi={slotN(m.aqi)} class="ctx-dot"><title>{m.name}: {m.aqi}</title></circle>
+            ))}
+          </g>
+          <g class="ncr-inset" aria-hidden="true">
+            <line x1={delhiX} y1={delhiY} x2={lead.x} y2={lead.y} stroke="var(--color-fg-subtle)" stroke-width="0.75" stroke-dasharray="3 3" vector-effect="non-scaling-stroke" />
+            <defs><clipPath id="ncr-clip"><circle cx={INSET.cx} cy={INSET.cy} r={INSET.r} /></clipPath></defs>
+            <g clip-path="url(#ncr-clip)">
+              <circle cx={INSET.cx} cy={INSET.cy} r={INSET.r} fill="var(--color-bg-subtle)" />
+              <g transform={`translate(${INSET.cx - INSET.r} ${INSET.cy - INSET.r}) scale(${s})`}>
+                <path d={INDIA.ncr.outline} fill="var(--color-bg)" />
+                <path d={INDIA.ncr.borders} fill="none" stroke="var(--color-ring-strong)" stroke-width="1" vector-effect="non-scaling-stroke" />
+              </g>
+            </g>
+            <circle cx={INSET.cx} cy={INSET.cy} r={INSET.r} fill="none" stroke="var(--color-fg-subtle)" stroke-width="1" vector-effect="non-scaling-stroke" />
+          </g>
+          <g class="city-layer">
+            {/* NCR on the main map: small markers at full view, links once zoomed (the inset takes over below 2.5×). */}
+            {launch.filter(({ c }) => c.ncr).map(({ c, now, mx, my }) => (
+              <a {...dotLink(c, now)} class="ncr-main">
+                <circle cx={mx} cy={my} style="--r:14" class="hit" />
+                <circle cx={mx} cy={my} style="--r:6" data-aqi={slotN(now?.aqi)} data-aqi-us={slotU(now?.us)} class="map-dot" />
+              </a>
+            ))}
+            {launch.map(({ c, now, mx, my, ix, iy, r }) => (
+              <a {...dotLink(c, now)} class={c.ncr ? 'ncr-inset' : undefined}>
+                <circle cx={c.ncr ? ix : mx} cy={c.ncr ? iy : my} style={`--r:${c.ncr ? 16 : 22}`} class="hit" />
+                {now && slotN(now.aqi) === 'severe' && <circle cx={c.ncr ? ix : mx} cy={c.ncr ? iy : my} style={`--r:${r + 3}`} class="severe-ring" />}
+                <circle cx={c.ncr ? ix : mx} cy={c.ncr ? iy : my} style={`--r:${c.ncr ? 6.5 : r}`} data-aqi={slotN(now?.aqi)} data-aqi-us={slotU(now?.us)} class="map-dot" />
+              </a>
+            ))}
+          </g>
+          <g data-station-layer></g>
         </g>
-      </g>
-      <circle cx={INSET.cx} cy={INSET.cy} r={INSET.r} fill="none" stroke="var(--color-fg-subtle)" stroke-width="1" vector-effect="non-scaling-stroke" aria-hidden="true" />
-      {launch.map(({ c, now, x, y, r }) => (
-        <a href={localePath(lang, `/aqi/${c.slug}`)} data-card data-n={name(c)} data-v={now?.aqi ?? ''} data-u={now?.us ?? ''} data-s={now ? `${d.hero.live} · ${relative(now.at, lang)}` : ''} aria-label={`${name(c)}, AQI ${now ? `${now.aqi}, ${catLabel(now.aqi, lang)}` : d.insufficient}`}>
-          <circle cx={x} cy={y} r={c.ncr ? 16 : 22} fill="transparent" />
-          {now && slotN(now.aqi) === 'severe' && <circle cx={x} cy={y} r={r + 3} class="severe-ring" />}
-          <circle cx={x} cy={y} r={c.ncr ? 6.5 : r} data-aqi={slotN(now?.aqi)} data-aqi-us={slotU(now?.us)} class="map-dot" />
-        </a>
-      ))}
-    </svg>
-    {/* Labels are HTML so they stay 11 px at every width. */}
-    <div class="pointer-events-none absolute inset-2 sm:inset-4 font-mono text-[11px] text-[var(--color-fg-subtle)]" aria-hidden="true">
-      {launch.filter(({ c }) => LABELS[c.slug]).map(({ c, x, y, r }) =>
-        LABELS[c.slug] === 'r' ? (
-          <span class="absolute whitespace-nowrap" style={`left:${((x + r + 3) / W) * 100}%;top:${(y / H) * 100}%;transform:translateY(-50%)`}>{name(c)}</span>
-        ) : (
-          <span class="absolute whitespace-nowrap" style={`right:${((W - x + r + 3) / W) * 100}%;top:${(y / H) * 100}%;transform:translateY(-50%)`}>{name(c)}</span>
-        ),
-      )}
-      <span class="absolute whitespace-nowrap" style={`left:${((INSET.cx + INSET.r + 4) / W) * 100}%;top:${(INSET.cy / H) * 100}%;transform:translateY(-50%)`}>{lang === 'hi' ? 'दिल्ली-NCR' : 'Delhi-NCR'}</span>
+        <g data-replay-layer aria-hidden="true"></g>
+      </svg>
+
+      {/* Labels are HTML so they stay 11 px at every zoom; scripts/indiamap.ts moves them with the camera. */}
+      <div class="pointer-events-none absolute inset-0 overflow-hidden font-mono text-[11px] text-[var(--color-fg-subtle)]" aria-hidden="true" data-labels>
+        {launch.map(({ c, mx, my, r }) => {
+          const side = MAJOR[c.slug] ?? 'r';
+          return (
+            <span
+              class:list={['map-label absolute whitespace-nowrap', !MAJOR[c.slug] && 'lbl-minor']}
+              data-x={mx}
+              data-y={my}
+              data-side={side}
+              data-off={r + 3}
+              style={side === 'r' ? `left:${pct(mx + r + 3, W)};top:${pct(my, H)};transform:translateY(-50%)` : `right:${pct(W - mx + r + 3, W)};top:${pct(my, H)};transform:translateY(-50%)`}
+            >{name(c)}</span>
+          );
+        })}
+        <span class="map-label absolute whitespace-nowrap lbl-inset" style={`left:${pct(INSET.cx + INSET.r + 4, W)};top:${pct(INSET.cy, H)};transform:translateY(-50%)`}>{lang === 'hi' ? 'दिल्ली-NCR' : 'Delhi-NCR'}</span>
+      </div>
+
+      <div class="hidden absolute left-0 top-0 raised px-3 py-2 font-mono text-[12px] leading-snug max-w-[70%]" data-replay-hud aria-live="polite"></div>
+      <p class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 raised px-3 py-1.5 t-small pointer-events-none whitespace-nowrap" data-zoom-hint hidden>{hint}</p>
+      <p class="absolute left-1/2 top-2 -translate-x-1/2 raised px-3 py-1.5 t-small pointer-events-none hidden" data-stations-loading>{mapText.stationsLoading}</p>
     </div>
+    <MapControls lang={lang} />
     <div class="map-card raised absolute z-10 w-[220px] p-4 hidden" data-map-card role="status"></div>
     <MapCardLabels lang={lang} link={d.map.view} />
+    <script type="application/json" data-map-text set:html={JSON.stringify(mapText)} />
   </div>
+
+  {/* Replay: CPCB's official daily values, played back. JS only. */}
+  <div class="mt-3 flex flex-wrap items-center gap-2" data-js-only hidden data-replay-bar>
+    <span class="t-label text-[var(--color-fg-subtle)] mr-1">{mapText.replayTitle}</span>
+    <button type="button" class="btn btn-secondary h-8! px-3! t-small" data-replay-start="30d">▶ {mapText.replay30}</button>
+    <button type="button" class="btn btn-secondary h-8! px-3! t-small" data-replay-start="diwali-2025">▶ {mapText.replayDiwali}</button>
+  </div>
+  <div class="mt-3 hidden items-center gap-3 card px-3 py-2" data-replay-controls>
+    <button type="button" class="btn btn-ghost h-8! w-9! px-0! font-mono" data-replay-toggle aria-label={mapText.pause}>❚❚</button>
+    <input type="range" min="0" max="0" value="0" class="flex-1 min-w-0 accent-[var(--color-fg)]" data-replay-range aria-label="Day" />
+    <span class="font-mono text-[12px] tabular min-w-[84px] text-right" data-replay-date></span>
+    <button type="button" class="btn btn-ghost h-8! px-2! t-small" data-replay-close>{lang === 'hi' ? 'लाइव' : 'Live'} ✕</button>
+  </div>
+
   <figcaption class="mt-3">
     <ul class="flex flex-wrap gap-x-3 gap-y-1.5 font-mono text-[11px] text-[var(--color-fg-muted)]" aria-label={d.map.legend}>
       {NAQI_ROWS.map((row, i) => (
@@ -114,9 +187,11 @@ const name = (c: (typeof CITIES)[number]) => (lang === 'hi' ? c.hi : c.en);
         </li>
       ))}
     </ul>
-    <p class="t-small text-[var(--color-fg-subtle)] mt-2">{d.home.mapNote} {d.map.attribution}</p>
+    <p class="t-small text-[var(--color-fg-subtle)] mt-2" data-map-note>{d.home.mapNote} {lang === 'hi' ? 'ज़ूम करें तो हर स्टेशन दिखेगा।' : 'Zoom in to see every station.'} {d.map.attribution}</p>
+    <p class="t-small text-[var(--color-fg-subtle)] mt-2 hidden" data-replay-note>{mapText.replayNote}</p>
   </figcaption>
 </figure>
 <script>
   import '../scripts/mapcards.ts';
+  import '../scripts/indiamap.ts';
 </script>

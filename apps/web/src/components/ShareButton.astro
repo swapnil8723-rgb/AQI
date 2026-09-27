@@ -1,53 +1,22 @@
 ---
 /**
- * "Share today's air" (PLAN.md §5.2 item 10, DESIGN.md §4.11). The 1080×1350
- * card is drawn on a canvas in the browser and handed to the native share
- * sheet (WhatsApp on Android), so it costs no server rendering. Falls back
- * to a download plus a WhatsApp text link. The page embeds the card data
- * once, as JSON with id "share-data" (see views/CityPage.astro).
+ * "Share today's air" (PLAN.md §5.2 item 10, DESIGN.md §4.11). Opens the
+ * share sheet (ShareSheet.astro). Tinted with the city's air colour rather
+ * than a black primary button.
  */
 import { t, type Lang } from '../i18n/index.ts';
+import type { SlotName } from '../lib/aqi-ui.ts';
 import Icon from './Icon.astro';
-
-export interface ShareData {
-  city: string;
-  cityAlt: string;
-  aqi: number;
-  us: number | null;
-  cat: string;
-  catAlt: string;
-  catUs: string;
-  slot: string;
-  slotUs: string;
-  main: string;
-  worst: string | null;
-  cleanest: string | null;
-  date: string;
-  url: string;
-  brand: string;
-  live: string;
-  text: string;
-  mainLabel: string;
-  worstLabel: string;
-  cleanestLabel: string;
-}
 
 interface Props {
   lang: Lang;
-  data: ShareData | null;
+  slot: SlotName;
+  class?: string;
 }
-const { lang, data } = Astro.props;
+const { lang, slot, class: cls = '' } = Astro.props;
 const d = t(lang);
 ---
-{data && (
-  <div class="flex flex-wrap items-center gap-2" data-share-root>
-    <button type="button" class="btn btn-secondary" data-share-trigger>
-      <Icon name="share-2" size={16} />
-      {d.share.button}
-    </button>
-    <a class="btn btn-ghost t-small" href={`https://wa.me/?text=${encodeURIComponent(data.text)}`} target="_blank" rel="noopener" data-share-wa>{d.share.whatsapp}</a>
-  </div>
-)}
-<script>
-  import '../scripts/share.ts';
-</script>
+<button type="button" class={`btn btn-tint ${cls}`} data-aqi={slot} data-share-open>
+  <Icon name="share-2" size={16} />
+  {d.share.button}
+</button>

@@ -14,6 +14,8 @@ export interface Env {
 /** KV key the website reads. Bump the version when the Bundle shape changes. */
 export const BUNDLE_KEY = 'bundle:v1';
 export const STATUS_KEY = 'ingest:status';
+/** 30 days of CPCB's official daily AQI for every city (the home map replay). */
+export const REPLAY_KEY = 'replay:30d';
 
 export function userAgent(env: Env): string {
   return `SaansAQI/1.0 (air-quality archive; contact ${env.CONTACT_EMAIL ?? 'unknown'})`;
