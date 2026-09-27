@@ -16,7 +16,7 @@
  */
 {
   "$schema": "../../node_modules/wrangler/config-schema.json",
-  "name": "saans-ingest",
+  "name": "aqi",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
@@ -44,6 +44,5 @@
     // Sent in the User-Agent to data.gov.in and CPCB so they can reach us.
     "CONTACT_EMAIL": "support@risescribe.com"
   },
-  "limits": { "cpu_ms": 60000 },
   "observability": { "enabled": true }
 }
