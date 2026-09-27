@@ -7,11 +7,15 @@ import type { APIRoute } from 'astro';
 import { nearestCity } from '@saans/data';
 
 export const GET: APIRoute = ({ request }) => {
+  // Cloudflare puts the IP location on request.cf; Vercel sends x-vercel-ip-* headers.
   const cf = (request as Request & { cf?: { latitude?: string; longitude?: string; country?: string } }).cf;
-  const lat = Number(cf?.latitude);
-  const lon = Number(cf?.longitude);
+  const h = request.headers;
+  const lat = Number(cf?.latitude ?? h.get('x-vercel-ip-latitude'));
+  const lon = Number(cf?.longitude ?? h.get('x-vercel-ip-longitude'));
+  const country = cf?.country ?? h.get('x-vercel-ip-country');
   const headers = { 'content-type': 'application/json', 'cache-control': 'no-store', 'x-robots-tag': 'noindex' };
-  if (!Number.isFinite(lat) || !Number.isFinite(lon) || cf?.country !== 'IN') {
+  if (!h.has('x-vercel-ip-latitude') && !cf) return new Response(JSON.stringify({ slug: null }), { headers });
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || country !== 'IN') {
     return new Response(JSON.stringify({ slug: null }), { headers });
   }
   const n = nearestCity(lat, lon);

@@ -70,51 +70,11 @@ page stays coherent. Re-run it and `npm run seed` when the preview says stale.
 | Abnormal readings | Calibrated on 3,279 real rows: flat traces at Moderate+ (e.g. a stuck CO sensor at 147–148 all day), spikes the city doesn't share, PM2.5 > PM10 (seen 0/386), negatives. Flagged, never deleted. |
 | Worker end to end | On workerd locally: 3,279 real rows → 503 stations, D1, R2 raw archive, KV bundle; the bulletin job fetched and parsed CPCB's real PDF inside the Worker and reconciled 25/25 launch cities within ±10% (21 identical). |
 
-## Deploy (Cloudflare)
+## Deploy
 
-Needs **Workers Paid ($5/month)**: parsing ~3,300 feed rows and a 14-page
-bulletin PDF far exceeds the free plan's 10 ms CPU per invocation. The site
-itself would fit the free plan, but both Workers share the account plan.
-
-1. **data.gov.in key.** Register at data.gov.in → My Account → API key. (The
-   public sample key returns 10 rows a page and answers HTTP 429.)
-2. **Resources** (from `workers/ingest`):
-   ```bash
-   npx wrangler d1 create saans
-   ```
-   ```bash
-   npx wrangler kv namespace create KV
-   ```
-   ```bash
-   npx wrangler r2 bucket create saans-archive
-   ```
-   Paste the D1 `database_id` into `workers/ingest/wrangler.jsonc`, and the KV
-   `id` into **both** `workers/ingest/wrangler.jsonc` and `apps/web/wrangler.jsonc`.
-3. **Secrets** (from `workers/ingest`): `npx wrangler secret put DATA_GOV_IN_KEY`,
-   `INGEST_TOKEN` (any long random string), and optionally `TELEGRAM_BOT_TOKEN`
-   + `TELEGRAM_CHAT_ID` for alerts.
-4. **Database + history** (from `workers/ingest`):
-   ```bash
-   npm run migrate:remote
-   ```
-   ```bash
-   npx wrangler d1 execute saans --remote --file=../../.cache/backfill/bulletins.sql
-   ```
-   (run `npm run backfill -- 2025-09-01 2026-09-26` first; extend the range back
-   to 2015 whenever you like — about 94,000 rows per year).
-5. **Start the archive today** (from `workers/ingest`): `npm run deploy`, then
-   `curl -X POST -H "Authorization: Bearer $INGEST_TOKEN" https://saans-ingest.<you>.workers.dev/run/hourly`
-   and check `/health`. Every hour not captured is lost for good.
-6. **Site**: from `apps/web`, `SITE_URL=https://your-domain npm run deploy`
-   (the script refuses to run without `SITE_URL`). Or connect the repo in
-   Workers Builds with build command `npm run build:prod -w @saans/web`,
-   deploy command `npx wrangler deploy` (root `apps/web`), and `SITE_URL` set.
-7. **Domain**: add the custom domain to `saans-web` in the Cloudflare dashboard,
-   then Search Console → add the property → submit `/sitemap.xml`.
-
-If data.gov.in ever blocks Cloudflare's IPs, fetch from any machine in India
-and push the raw records: `POST /ingest` with the bearer token (see
-`scripts/push-snapshot.ts` for the record format).
+Step-by-step for **Cloudflare** (recommended, US$5/month) or **Vercel** (site)
+with Cloudflare (data): see [DEPLOY.md](DEPLOY.md). Run locally first:
+`npm install`, `npm run backfill -- 2025-09-01 2026-09-26` (once), `npm run dev:fresh`.
 
 ## Operations
 

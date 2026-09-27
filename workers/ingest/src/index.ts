@@ -4,6 +4,8 @@
  *
  * HTTP (all JSON):
  *   GET  /health                 public: last run of each job, bundle age
+ *   GET  /v1/bundle.json         public: the hourly bundle (for a site hosted off Cloudflare, e.g. Vercel)
+ *   GET  /v1/replay.json         public: 30 days of official daily AQI (home map replay)
  *   POST /ingest                 Bearer INGEST_TOKEN; body = data.gov.in records (array or {records})
  *   POST /run/hourly             Bearer; run the hourly job now
  *   POST /run/bulletin?date=     Bearer; fetch and reconcile a bulletin (default: today IST)
@@ -14,7 +16,7 @@ import { addDays, istDate, type Bundle } from '@saans/pipeline';
 import { readStatus, record, type Job } from './alert.ts';
 import { archiveDay } from './archive.ts';
 import { bulletinJob } from './bulletin.ts';
-import { BUNDLE_KEY, type Env } from './env.ts';
+import { BUNDLE_KEY, REPLAY_KEY, type Env } from './env.ts';
 import { hourly } from './hourly.ts';
 
 async function run(env: Env, job: Job, fn: () => Promise<unknown>): Promise<unknown> {
@@ -74,6 +76,20 @@ export default {
 
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
+    // Read-only data for a website hosted elsewhere (Vercel): the same values the
+    // Cloudflare site reads from KV. Cached at the edge for 5 minutes.
+    if (req.method === 'GET' && (url.pathname === '/v1/bundle.json' || url.pathname === '/v1/replay.json')) {
+      const key = url.pathname === '/v1/bundle.json' ? BUNDLE_KEY : REPLAY_KEY;
+      const body = await env.KV.get(key, { cacheTtl: 60 });
+      if (!body) return json({ error: 'not ready' }, 503);
+      return new Response(body, {
+        headers: {
+          'content-type': 'application/json; charset=utf-8',
+          'cache-control': 'public, max-age=300, s-maxage=300',
+          'access-control-allow-origin': '*',
+        },
+      });
+    }
     if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/health')) {
       const [status, bundle] = await Promise.all([readStatus(env), env.KV.get<Bundle>(BUNDLE_KEY, 'json')]);
       const age = bundle ? Math.round((Date.now() - Date.parse(bundle.generatedAt)) / 60000) : null;

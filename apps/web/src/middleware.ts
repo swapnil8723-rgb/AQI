@@ -35,14 +35,18 @@ export const onRequest = defineMiddleware(async (context, next) => {
   for (const [k, v] of Object.entries(SECURITY)) out.headers.set(k, v);
 
   const type = out.headers.get('content-type') ?? '';
-  if (cache && out.status === 200 && (type.includes('text/html') || type.includes('xml') || type.includes('text/plain'))) {
+  if (cacheable && out.status === 200 && (type.includes('text/html') || type.includes('xml') || type.includes('text/plain'))) {
+    // s-maxage alone is enough on Vercel (its CDN caches function responses);
+    // on Cloudflare the Cache API below does the caching.
     out.headers.set('cache-control', `public, max-age=${BROWSER_TTL}, s-maxage=${EDGE_TTL}, stale-while-revalidate=1800`);
-    const stored = out.clone();
-    stored.headers.set('cache-control', `public, max-age=${EDGE_TTL}`);
-    const put = cache.put(request.url, stored);
-    const ctx = (context.locals as { cfContext?: { waitUntil(p: Promise<unknown>): void } }).cfContext;
-    if (ctx) ctx.waitUntil(put);
-    else await put;
+    if (cache) {
+      const stored = out.clone();
+      stored.headers.set('cache-control', `public, max-age=${EDGE_TTL}`);
+      const put = cache.put(request.url, stored);
+      const ctx = (context.locals as { cfContext?: { waitUntil(p: Promise<unknown>): void } }).cfContext;
+      if (ctx) ctx.waitUntil(put);
+      else await put;
+    }
   } else if (!out.headers.has('cache-control')) {
     out.headers.set('cache-control', 'no-store');
   }

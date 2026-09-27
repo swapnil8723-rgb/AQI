@@ -25,7 +25,8 @@
     "smoke": "node scripts/smoke.ts",
     "backfill": "node scripts/backfill-bulletins.ts",
     "push": "node scripts/push-snapshot.ts",
-    "seed": "npm run seed -w @saans/web"
+    "seed": "npm run seed -w @saans/web",
+    "dev:fresh": "npm run fixture && npm run seed && npm run dev"
   },
   "allowScripts": {
     "esbuild": true,
