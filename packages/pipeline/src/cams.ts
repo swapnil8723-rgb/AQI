@@ -188,7 +188,9 @@ function round(x: number, d: number): number {
 // Measured against the 29 Sep 2026 bulletin across the 25 launch cities, the
 // uncorrected estimate was 2–5× CPCB (Delhi 150 vs 71) and landed within 10%
 // on **none** of them. A per-city factor learned from recent bulletins takes
-// that to roughly a third within 10% and four fifths within 25%.
+// that to about 28% within 10%, 72% within 25% and 92% within 50%, measured
+// over 539 city-days to 26 Sep 2026 (factors 0.2–0.93, national median 0.51;
+// at least one city sits on the 0.2 clamp, i.e. the model is 5× off there).
 //
 // It is a correction, not a measurement. The page must say so, and /about must
 // publish the real error band rather than the station-era accuracy claim.

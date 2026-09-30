@@ -35,9 +35,11 @@ DESIGN.md decides every UI question, README.md has commands and deploy steps.
 
    The old target — ≥ 90% within ±10% of the bulletin — was achievable with
    stations and is **not** achievable with a model: uncorrected CAMS matched
-   0% of launch cities within 10% on 29 Sep 2026, and correction takes that to
-   roughly 44% within 10% and 96% within 50%. Publish the real band; never
-   restore the old accuracy claim while the number is modelled.
+   0% of launch cities within 10% on 29 Sep 2026. Corrected and measured over
+   539 city-days to 26 Sep 2026: about **28% within 10%, 72% within 25%, 92%
+   within 50%**, with at least one city clamped at the 0.2 floor. Publish that
+   band; never restore the old accuracy claim while the number is modelled,
+   and re-measure rather than quoting these figures if the method changes.
 6. **Before you finish:** `npm test`, `npm run check`, and `npm run smoke`
    against a running dev server. Check 360 px and 1440 px, light and dark,
    EN and HI.

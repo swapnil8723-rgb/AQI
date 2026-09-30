@@ -9,9 +9,10 @@
  * same day, takes the median ratio per city, and writes it to KV as
  * `cams:calibration`, which the hourly job applies to the sub-indices.
  *
- * On three training days that moved the 29 Sep backtest from 0% to 44% of
- * cities within 10% of CPCB, and 96% within 50%. It is a correction on a
- * model, not a measurement: the page says so, and /about publishes the band.
+ * Measured over 539 city-days to 26 Sep 2026 this moves the fit from 0% to
+ * about 28% of cities within 10% of CPCB, 72% within 25% and 92% within 50%.
+ * It is a correction on a model, not a measurement: the page says so, and
+ * /about publishes the band.
  *
  * Run it daily after the bulletin job, and once by hand to bootstrap — the
  * hourly job warns while `cams:calibration` is missing.

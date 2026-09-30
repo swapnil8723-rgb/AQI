@@ -104,9 +104,10 @@ apps/web (Astro SSR) reads KV (fast path) + D1 (charts/history) ─► edge cach
 >
 > **The accuracy claim below no longer holds while the number is modelled.**
 > Uncorrected CAMS matched 0% of launch cities within ±10% of the 29 Sep
-> bulletin; corrected, about 44% within 10% and 96% within 50%. `/about` must
-> publish that band, not the station-era figure. Restore the old claim only
-> if a real station feed returns.
+> bulletin. Corrected against 539 city-days of bulletins to 26 Sep 2026:
+> about **28% within 10%, 72% within 25%, 92% within 50%**. `/about` publishes
+> that band, not the station-era figure. Restore the old claim only if a real
+> station feed returns.
 
 - **Hourly station data (retired):** CPCB via data.gov.in, the "Real time Air Quality Index from various locations" dataset. Free API key; fields: country, state, city, station, last_update, latitude, longitude, pollutant_id, pollutant_min, pollutant_max, pollutant_avg.
 - **Official daily city AQI:** CPCB's daily AQI bulletin (4 PM, 24-hour average). Columns are city, AQI, prominent pollutant(s), and stations participated/total. CPCB states that for multi-station cities the **average** of stations is used, and notes that averaging is not scientifically sound but is used for simplicity. That's exactly why we show both the bulletin and the stations. Parse the HTML table once a day, politely (one request, with a user-agent naming the site and a contact email), and keep the source link on the page.
