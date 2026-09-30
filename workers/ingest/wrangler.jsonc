@@ -8,7 +8,6 @@
  *   npx wrangler d1 create aqi              → paste database_id below
  *   npx wrangler kv namespace create KV     → paste id below (and in apps/web/wrangler.jsonc)
  *   npx wrangler r2 bucket create saans-archive
- *   npx wrangler secret put DATA_GOV_IN_KEY
  *   npx wrangler secret put INGEST_TOKEN
  *   npx wrangler secret put TELEGRAM_BOT_TOKEN   (optional)
  *   npx wrangler secret put TELEGRAM_CHAT_ID     (optional)

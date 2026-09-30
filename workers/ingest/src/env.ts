@@ -2,12 +2,6 @@ export interface Env {
   DB: D1Database;
   KV: KVNamespace;
   ARCHIVE: R2Bucket;
-  /**
-   * Unused since Sep 2026: CPCB's data.gov.in feed went down and the hourly
-   * estimate now comes from CAMS, which needs no key. Kept so an existing
-   * secret does not break the binding; delete once the secret is removed.
-   */
-  DATA_GOV_IN_KEY?: string;
   /** Bearer token for POST /ingest and /run/* (secret). */
   INGEST_TOKEN?: string;
   TELEGRAM_BOT_TOKEN?: string;

@@ -2,6 +2,18 @@
  * data.gov.in resource 3b01bcb8-0b14-4abf-b6f2-c1bfd384ba69,
  * "Real time Air Quality Index from various locations" (CPCB).
  *
+ * **The live feed is dead** (30 Sep 2026): data.gov.in refuses connections and
+ * CPCB's legacy endpoints answer 404, so the HTTP client that paged this
+ * resource has been deleted — there is nothing to fetch. The hourly estimate
+ * now comes from `cams.ts`.
+ *
+ * The parser below stays, and is not dead code: `scripts/fixture.ts` and
+ * `scripts/gate.ts` replay the archived snapshots through it, the tests cover
+ * it, and it is the way back if CPCB ever publishes a station feed again.
+ * Restoring that means writing a fresh client for whatever the new endpoint
+ * is, then pointing `hourly()` at `buildStations(parseFeedRecords(...))` and
+ * dropping `live: 'cams'`.
+ *
  * Facts established on 26 Sep 2026 (PLAN.md §3.2 items 1 and 5):
  * - Fields: country, state, city, station, last_update, latitude, longitude,
  *   pollutant_id, min_value, max_value, avg_value. (Older docs call them
@@ -13,15 +25,11 @@
  * - last_update is IST, "DD-MM-YYYY HH:MM:SS".
  * - pollutant_id is PM2.5, PM10, NO2, SO2, CO, OZONE, NH3. Missing = "NA".
  * - About 3,300 rows (≈ 500 stations) per snapshot; ~9% are NA.
- * - The public sample key returns 10 rows a page and is rate limited (HTTP 429).
  */
 
 import type { Pollutant } from '@saans/aqi';
 import type { FeedRow } from './types.ts';
 import { parseIst } from './time.ts';
-
-export const RESOURCE_ID = '3b01bcb8-0b14-4abf-b6f2-c1bfd384ba69';
-export const FEED_URL = `https://api.data.gov.in/resource/${RESOURCE_ID}`;
 
 const POLLUTANT_IDS: Record<string, Pollutant> = {
   'PM2.5': 'pm25',
@@ -101,88 +109,4 @@ export function parseFeedRecords(records: unknown): ParseResult {
     });
   }
   return { rows, rejected: Object.values(reasons).reduce((a, b) => a + b, 0), reasons };
-}
-
-export interface FeedPage {
-  total?: number | string;
-  count?: number | string;
-  records?: unknown[];
-  status?: string;
-  message?: string;
-  error?: string;
-}
-
-export function feedPageUrl(apiKey: string, limit: number, offset: number): string {
-  const q = new URLSearchParams({ 'api-key': apiKey, format: 'json', limit: String(limit), offset: String(offset) });
-  return `${FEED_URL}?${q}`;
-}
-
-export interface FetchFeedOptions {
-  apiKey: string;
-  /** Rows per page. Registered keys accept large pages; the sample key caps at 10. */
-  pageSize?: number;
-  /** Give up after this many ms in total. */
-  deadlineMs?: number;
-  userAgent?: string;
-  fetchImpl?: typeof fetch;
-  sleep?: (ms: number) => Promise<void>;
-}
-
-/**
- * Page through the whole feed. Retries 429/5xx with backoff (data.gov.in
- * throttles bursts), adapts to a smaller page ceiling, and stops at the
- * deadline rather than running forever against a slow endpoint.
- */
-export async function fetchFeed(opts: FetchFeedOptions): Promise<{ records: unknown[]; total: number; pages: number }> {
-  const f = opts.fetchImpl ?? fetch;
-  const sleep = opts.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
-  const started = Date.now();
-  const deadline = opts.deadlineMs ?? 240_000;
-  let limit = opts.pageSize ?? 1000;
-  const records: unknown[] = [];
-  let total = Infinity;
-  let pages = 0;
-
-  const getPage = async (offset: number): Promise<FeedPage> => {
-    let wait = 2000;
-    for (let attempt = 0; ; attempt++) {
-      if (Date.now() - started > deadline) throw new Error(`feed: deadline after ${records.length} rows`);
-      let res: Response;
-      try {
-        res = await f(feedPageUrl(opts.apiKey, limit, offset), {
-          headers: { accept: 'application/json', 'user-agent': opts.userAgent ?? 'saans-ingest' },
-        });
-      } catch (e) {
-        if (attempt >= 4) throw new Error(`feed: network error at offset ${offset}: ${String(e)}`);
-        await sleep(wait);
-        wait = Math.min(wait * 2, 30_000);
-        continue;
-      }
-      if (res.status === 429 || res.status >= 500) {
-        if (attempt >= 4) throw new Error(`feed: HTTP ${res.status} at offset ${offset}`);
-        const ra = Number(res.headers.get('retry-after'));
-        await sleep(Number.isFinite(ra) && ra > 0 ? ra * 1000 : wait);
-        wait = Math.min(wait * 2, 30_000);
-        continue;
-      }
-      if (!res.ok) throw new Error(`feed: HTTP ${res.status} at offset ${offset}`);
-      const body = (await res.json()) as FeedPage;
-      if (body.error) throw new Error(`feed: ${body.error}`);
-      return body;
-    }
-  };
-
-  while (records.length < total) {
-    const page = await getPage(records.length);
-    pages++;
-    const got = Array.isArray(page.records) ? page.records : [];
-    const t = Number(page.total);
-    if (Number.isFinite(t)) total = t;
-    if (got.length === 0) break;
-    records.push(...got);
-    // A key with a lower ceiling returns fewer rows than asked; page at that size.
-    if (got.length < limit && records.length < total) limit = got.length;
-    if (records.length < total) await sleep(300 + Math.random() * 400);
-  }
-  return { records, total: Number.isFinite(total) ? total : records.length, pages };
 }
