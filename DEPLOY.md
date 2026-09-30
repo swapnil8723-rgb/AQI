@@ -30,15 +30,18 @@ request, 5 cron triggers per account). So:
 Setup:
 1. Worker **aqi → Settings → Variables and Secrets**: add secret `INGEST_TOKEN` (a long password).
 2. GitHub repo **AQI → Settings → Secrets and variables → Actions**:
-   - *Secrets*: `DATA_GOV_IN_KEY` (your data.gov.in key), `INGEST_TOKEN` (the same password)
+   - *Secrets*: `INGEST_TOKEN` (the same password). No data source key is
+     needed — CPCB's feed is gone and the CAMS estimate is keyless.
    - *Variables*: `INGEST_URL` = `https://aqi.swapnil-8723.workers.dev`
 3. GitHub → **Actions → ingest → Run workflow** (job `auto`) to start now; then it runs every hour.
 4. Check `https://aqi.swapnil-8723.workers.dev/health` → `"healthy": true`.
 
 Private repos get 2,000 free Actions minutes a month; this uses about 1,000.
 **Moving to Workers Paid later:** restore the crons in `workers/ingest/wrangler.jsonc`
-(the line is in the comment), add `DATA_GOV_IN_KEY` to the Worker, push, and
-disable the workflow (Actions → ingest → ⋯ → Disable workflow).
+(the line is in the comment), push, and disable the workflow
+(Actions → ingest → ⋯ → Disable workflow). Note the Worker's own hourly job
+covers the 25 launch cities only; the Actions job also scores the ~280 map
+cities, so keep this workflow if you want the national map to stay live.
 
 ## 0. Run it on your computer
 
@@ -60,7 +63,8 @@ it (Ctrl+C) and run `npm run dev:fresh` again.
 
 ## 1. Before you start (both options)
 
-- **data.gov.in API key** (free): sign in at data.gov.in → My Account → *Generate API key*. The public sample key is rate-limited and returns 10 rows a page.
+- **No data source key.** CPCB's data.gov.in feed stopped answering in Sep 2026; the hourly estimate comes from Open-Meteo's CAMS endpoint, which needs no key, and the daily bulletin is a public PDF. After the first bulletins are stored, run `npm run calibrate` once so the estimate is corrected per city (until then it reads ~2x high and the hourly job warns).
+- **Before you switch ads on, pay Open-Meteo.** We use ~24 calls a day against a 10,000/day allowance, so volume is not the issue — but their free tier is non-commercial and its terms name sites that display advertisements as needing a paid plan. Take a paid plan or self-host their API first. The data itself is CC BY 4.0 and is attributed in the footer.
 - **Cloudflare account** with **Workers Paid** (dashboard → Workers & Pages → *Plans* → Paid, US$5/month). The free plan's 10 ms CPU limit is too small to parse CPCB's feed and the bulletin PDF.
 - **R2 enabled** (dashboard → R2 → *Purchase R2 / Enable*; the free 10 GB is enough).
 - A **domain** (optional to start — you can use the `*.workers.dev` / `*.vercel.app` address first).
@@ -93,9 +97,6 @@ Paste the printed ids:
 - KV `id` → `workers/ingest/wrangler.jsonc` **and** `apps/web/wrangler.jsonc` (replace `REPLACE_WITH_KV_NAMESPACE_ID`)
 
 Secrets (each command asks you to paste the value):
-```bash
-npx wrangler secret put DATA_GOV_IN_KEY
-```
 ```bash
 npx wrangler secret put INGEST_TOKEN
 ```
@@ -173,5 +174,6 @@ $env:SITE_URL="https://your-domain.in"; npm run deploy
 - **Search Console:** add the domain → submit `https://your-domain.in/sitemap.xml`.
 - **Watch it:** `/health` on the Worker (503 = data older than 2 h, or 2 failed runs). Telegram alerts arrive on the second failed run and whenever a city's 4 PM estimate differs from CPCB's bulletin by more than 10%.
 - **GRAP:** when CAQM issues an order, edit `packages/data/src/grap.ts` and redeploy the site.
-- **If data.gov.in blocks Cloudflare:** fetch the feed from any machine and push it — `node scripts/push-snapshot.ts` shows the format (`POST /ingest` with the bearer token).
+- **If the estimate drifts from the bulletin:** run `npm run calibrate` (it runs daily at 22:15 IST anyway). It relearns each city's correction from the stored bulletins; a city needs 3 bulletin days before it gets its own factor.
+- **If CPCB's feed ever returns:** `packages/pipeline/src/feed.ts` and the station path are intact — point `hourly()` back at them, drop `live: 'cams'`, and the station map, station pages and `npm run gate` come back as they were.
 - **Ads / analytics:** set `ADSENSE_CLIENT` / `CF_BEACON_TOKEN` (Cloudflare: `apps/web/wrangler.jsonc` vars; Vercel: environment variables). Ad slots stay empty until then.

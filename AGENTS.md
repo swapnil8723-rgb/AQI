@@ -3,20 +3,41 @@
 Rules for any coding agent working in this repo. PLAN.md is the product plan,
 DESIGN.md decides every UI question, README.md has commands and deploy steps.
 
-1. **Never invent data.** Every number on the site comes from CPCB (the
-   data.gov.in feed or the bulletin PDF) through `packages/pipeline`. Dev data
-   comes from `npm run fixture`, which replays real archived rows. Guide and
-   FAQ examples are computed with `@saans/aqi`, never typed in.
+1. **Never invent data, and never blur where a number came from.** Every
+   number is either a CPCB measurement or a labelled model value:
+   - **Official, daily:** CPCB's 4 PM bulletin PDF (`bulletin.ts`). Unaffected
+     by the outage and still the only "official" figure.
+   - **Live estimate, hourly:** CAMS via Open-Meteo (`cams.ts`), corrected
+     per city against recent bulletins. It is a **model, not a measurement**,
+     it has no stations behind it, and every surface that shows it says so
+     (`CityNow.source === 'cams'`).
+
+   CPCB's machine-readable feed died in Sep 2026 — data.gov.in refuses
+   connections, its legacy JSON endpoints 404, and every free redistributor
+   went down with it (WAQI stale since 2026-06-23, OpenAQ has no Indian
+   locations). Don't reintroduce a station feed without checking it is alive.
+   Dev data comes from `npm run fixture`. Guide and FAQ examples are computed
+   with `@saans/aqi`, never typed in.
 2. **"Official" means CPCB's bulletin value only.** Our number is always
-   "Live estimate" / "लाइव अनुमान". `npm run smoke` checks this.
+   "Live estimate" / "लाइव अनुमान", and while it is modelled it also carries
+   "Modelled — CPCB stations offline". `npm run smoke` checks this.
 3. **Follow DESIGN.md exactly.** No new colours, fonts, radii or shadows; the
    AQI category is the only colour. No gradients, no emoji, no red outside
    Very Poor air. Never negative letter-spacing on Hindi.
 4. **Zero JS above the fold.** Scripts only enhance. Every map dot is a link;
    the calculator and search work without JS.
-5. **The feed reports sub-indices, not concentrations.** Station AQI = max
-   sub-index with CPCB's validity rule; city = mean of valid stations.
-   Changing any of this must keep `npm run gate` at ≥ 90% within ±10%.
+5. **Keep CPCB's arithmetic, whatever the source feeds it.** Sub-index per
+   pollutant over CPCB's own windows (24 h; 8 h for CO and O3), AQI = max
+   sub-index, and CPCB's validity rule (≥ 3 pollutants, one particulate).
+   CAMS reports concentrations (CO in µg/m³, NAQI wants mg/m³); the retired
+   feed reported sub-indices. The per-city correction scales **sub-indices**,
+   not concentrations, so the headline moves by exactly the factor.
+
+   The old target — ≥ 90% within ±10% of the bulletin — was achievable with
+   stations and is **not** achievable with a model: uncorrected CAMS matched
+   0% of launch cities within 10% on 29 Sep 2026, and correction takes that to
+   roughly 44% within 10% and 96% within 50%. Publish the real band; never
+   restore the old accuracy claim while the number is modelled.
 6. **Before you finish:** `npm test`, `npm run check`, and `npm run smoke`
    against a running dev server. Check 360 px and 1440 px, light and dark,
    EN and HI.

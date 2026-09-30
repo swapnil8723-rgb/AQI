@@ -23,6 +23,8 @@ const { lang, bundle, calc } = Astro.props;
 const d = t(lang);
 const hi = lang === 'hi';
 const delhi = bundle?.cities.delhi?.now ?? null;
+// CPCB's hourly station feed is down; the live estimate is a corrected model.
+const modelled = bundle?.live === 'cams';
 
 // Worked examples, computed.
 const ex60 = { n: Math.round(naqiSubIndex('pm25', 60)!), u: usSubIndex('pm25', 60)! };
@@ -189,12 +191,18 @@ const jsonLd = [
 
       <h2 id="labels" class="t-h2">{hi ? 'इस साइट पर: आधिकारिक बनाम लाइव अनुमान' : 'On this site: official vs live estimate'}</h2>
       <p>{hi
-        ? 'हर शहर के पेज पर तीन नंबर अलग-अलग दिखते हैं, ताकि कुछ भी गड्डमड्ड न हो:'
-        : 'Every city page keeps three numbers apart, so nothing is blurred together:'}</p>
+        ? (modelled ? 'हर शहर के पेज पर नंबर अलग-अलग दिखते हैं, ताकि कुछ भी गड्डमड्ड न हो:' : 'हर शहर के पेज पर तीन नंबर अलग-अलग दिखते हैं, ताकि कुछ भी गड्डमड्ड न हो:')
+        : (modelled ? 'Every city page keeps its numbers apart, so nothing is blurred together:' : 'Every city page keeps three numbers apart, so nothing is blurred together:')}</p>
       <ul>
         <li><strong>{hi ? 'आधिकारिक CPCB बुलेटिन' : 'Official CPCB bulletin'}</strong> — {hi ? 'CPCB का शाम 4 बजे का शहर AQI, जैसा प्रकाशित हुआ, बिना बदले। “आधिकारिक” शब्द सिर्फ़ इसी के लिए है।' : 'CPCB’s 4 PM city AQI, exactly as published. The word “official” is used for this number only.'}</li>
-        <li><strong>{hi ? 'लाइव अनुमान' : 'Live estimate'}</strong> — {hi ? 'हमारा हर घंटे का शहर मान, CPCB के ही स्टेशनों और CPCB के ही तरीके से। 20 और 23 सितंबर 2026 को 4 बजे का हमारा अनुमान 97% शहरों में बुलेटिन से 10% के भीतर था।' : 'our hourly city value, from CPCB’s own stations with CPCB’s own method. On 20 and 23 Sep 2026, our 4 PM estimate was within 10% of the bulletin for 97% of cities.'}</li>
-        <li><strong>{hi ? 'स्टेशन' : 'Stations'}</strong> — {hi ? 'हर स्टेशन का अपना AQI, सबसे कम से सबसे ज़्यादा तक।' : 'each station’s own AQI, lowest to highest.'}</li>
+        {modelled ? (
+          <li><strong>{hi ? 'लाइव अनुमान (मॉडल आधारित)' : 'Live estimate (modelled)'}</strong> — {hi ? 'सितंबर 2026 से CPCB ने हर घंटे का स्टेशन डेटा देना बंद कर दिया, इसलिए बुलेटिनों के बीच का हमारा हर घंटे का मान CAMS मॉडल से आता है, CPCB के तरीके से आँका और हर शहर के हाल के बुलेटिन से संशोधित। यह माप नहीं है, और जहाँ भी दिखता है वहाँ ऐसा ही लिखा होता है।' : 'CPCB stopped publishing hourly station data in September 2026, so our hourly value between bulletins comes from the CAMS model, scored with CPCB’s method and corrected against each city’s recent bulletins. It is not a measurement, and it says so wherever it appears.'}</li>
+        ) : (
+          <>
+            <li><strong>{hi ? 'लाइव अनुमान' : 'Live estimate'}</strong> — {hi ? 'हमारा हर घंटे का शहर मान, CPCB के ही स्टेशनों और CPCB के ही तरीके से। 20 और 23 सितंबर 2026 को 4 बजे का हमारा अनुमान 97% शहरों में बुलेटिन से 10% के भीतर था।' : 'our hourly city value, from CPCB’s own stations with CPCB’s own method. On 20 and 23 Sep 2026, our 4 PM estimate was within 10% of the bulletin for 97% of cities.'}</li>
+            <li><strong>{hi ? 'स्टेशन' : 'Stations'}</strong> — {hi ? 'हर स्टेशन का अपना AQI, सबसे कम से सबसे ज़्यादा तक।' : 'each station’s own AQI, lowest to highest.'}</li>
+          </>
+        )}
       </ul>
       <p><a href={`${localePath(lang, '/about')}#methodology`}>{d.source.methodology} →</a></p>
     </article>

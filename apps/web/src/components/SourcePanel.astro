@@ -30,10 +30,11 @@ const rows = [
     label: d.source.rowLive,
     aqi: String(now.aqi),
     slot: slotN(now.aqi),
-    basis: d.source.basisLive(now.valid, now.total),
+    basis: now.source === 'cams' ? d.source.basisModelled : d.source.basisLive(now.valid, now.total),
     time: istTime(now.at),
   },
-  now && {
+  // The station range needs stations; a model grid cell has none.
+  now && now.source !== 'cams' && {
     label: d.source.rowRange,
     aqi: `${now.min}–${now.max}`,
     slot: slotN(now.max),
@@ -74,9 +75,9 @@ const rows = [
         </table>
       </div>
       <ul class="mt-4 space-y-1.5 t-small text-[var(--color-fg-muted)]">
-        <li>{d.source.sameMethod}</li>
+        <li>{now?.source === 'cams' ? d.source.modelledMethod : d.source.sameMethod}</li>
         {bulletin && now && <li>{d.source.whyTime(istTime(now.at))}</li>}
-        {bulletin && now && bulletin.used !== now.valid && <li>{d.source.whyStations(bulletin.used, now.valid)}</li>}
+        {bulletin && now && now.source !== 'cams' && bulletin.used !== now.valid && <li>{d.source.whyStations(bulletin.used, now.valid)}</li>}
         {bulletin?.ours != null && <li>{d.source.reconcile(bulletin.ours, bulletin.aqi, shortDate(bulletin.date, lang))}</li>}
         {now && now.excluded > 0 && <li>{d.source.excluded(now.excluded)}</li>}
         <li>{d.source.otherApps}</li>

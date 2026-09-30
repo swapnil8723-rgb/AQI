@@ -2,8 +2,12 @@ export interface Env {
   DB: D1Database;
   KV: KVNamespace;
   ARCHIVE: R2Bucket;
-  /** data.gov.in API key (secret). */
-  DATA_GOV_IN_KEY: string;
+  /**
+   * Unused since Sep 2026: CPCB's data.gov.in feed went down and the hourly
+   * estimate now comes from CAMS, which needs no key. Kept so an existing
+   * secret does not break the binding; delete once the secret is removed.
+   */
+  DATA_GOV_IN_KEY?: string;
   /** Bearer token for POST /ingest and /run/* (secret). */
   INGEST_TOKEN?: string;
   TELEGRAM_BOT_TOKEN?: string;
@@ -14,6 +18,8 @@ export interface Env {
 /** KV key the website reads. Bump the version when the Bundle shape changes. */
 export const BUNDLE_KEY = 'bundle:v1';
 export const STATUS_KEY = 'ingest:status';
+/** Per-city correction for the modelled estimate (scripts/calibrate.ts). */
+export const CALIBRATION_KEY = 'cams:calibration';
 /** 30 days of CPCB's official daily AQI for every city (the home map replay). */
 export const REPLAY_KEY = 'replay:30d';
 

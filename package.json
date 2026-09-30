@@ -19,14 +19,15 @@
     "check": "npm run typecheck && npm run typecheck -w @saans/ingest && npm run check -w @saans/web",
     "gate": "node scripts/gate.ts",
     "fixture": "node scripts/fixture.ts",
+    "fixture:cams": "node scripts/fixture-cams.ts",
     "map": "node scripts/build-map.ts",
     "deploy:ingest": "npm run deploy -w @saans/ingest",
     "deploy:web": "npm run deploy -w @saans/web",
     "smoke": "node scripts/smoke.ts",
     "backfill": "node scripts/backfill-bulletins.ts",
-    "push": "node scripts/push-snapshot.ts",
+    "calibrate": "node scripts/calibrate.ts",
     "seed": "npm run seed -w @saans/web",
-    "dev:fresh": "npm run fixture && npm run seed && npm run dev"
+    "dev:fresh": "npm run fixture:cams && npm run seed && npm run dev"
   },
   "allowScripts": {
     "esbuild": true,

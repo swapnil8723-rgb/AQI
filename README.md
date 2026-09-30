@@ -1,10 +1,20 @@
 # Saans — India's transparent air-quality site
 
-Live AQI for Indian cities from CPCB's own stations, with three numbers kept
-apart on every city page: **CPCB's official 4 PM bulletin**, **our hourly live
-estimate** (CPCB's method, reproduced), and **every station**. English at `/`,
-Hindi at `/hi/`. Plan: [PLAN.md](PLAN.md) · design: [DESIGN.md](DESIGN.md) ·
-agent rules: [AGENTS.md](AGENTS.md).
+AQI for Indian cities, with the sources kept apart on every city page:
+**CPCB's official 4 PM bulletin** and **our hourly live estimate**. English at
+`/`, Hindi at `/hi/`. Plan: [PLAN.md](PLAN.md) · design:
+[DESIGN.md](DESIGN.md) · agent rules: [AGENTS.md](AGENTS.md).
+
+> **CPCB's hourly station feed went down in September 2026.** data.gov.in
+> refuses connections, CPCB's legacy JSON endpoints answer 404, and the free
+> redistributors went down with it (WAQI's Indian stations stale since
+> 2026-06-23; OpenAQ carries no Indian locations). The **daily bulletin PDF is
+> unaffected**, so the official figure is still CPCB's own measurement. The
+> hourly estimate in between is now **modelled** — CAMS via Open-Meteo, scored
+> with CPCB's method and corrected per city against recent bulletins — and is
+> labelled as modelled everywhere it appears. Station pages and station map
+> dots are dormant until a live station feed exists again. See
+> [`packages/pipeline/src/cams.ts`](packages/pipeline/src/cams.ts).
 
 "Saans" is a working name — change it in `apps/web/src/lib/site.ts`,
 `apps/web/public/` and the Hindi dictionary before launch.
@@ -14,13 +24,13 @@ agent rules: [AGENTS.md](AGENTS.md).
 ```
 packages/aqi        NAQI + US EPA engine (pure TS, 183 tests with the pipeline)
 packages/data       launch cities (EN/HI), aliases, CPCB health text, GRAP, station names
-packages/pipeline   feed parsing, abnormal-value flags, station/city AQI, bulletin PDF parser, bundle
-workers/ingest      Cloudflare cron Worker: hourly feed → D1/KV/R2, 4 PM bulletin, nightly archive
+packages/pipeline   CAMS adapter + calibration, retired feed parser, station/city AQI, bulletin PDF parser, bundle
+workers/ingest      Cloudflare cron Worker: hourly estimate → D1/KV/R2, 4 PM bulletin, nightly archive
 apps/web            Astro 7 + Tailwind 4 site on Workers (SSR, edge-cached 10 min)
-scripts/            gate (bulletin reproduction), backfill, fixture, map build, smoke, push
+scripts/            gate (bulletin reproduction), calibrate, backfill, fixture, map build, smoke
 ```
 
-Data flow: `data.gov.in → saans-ingest → KV "bundle:v1" → saans-web`. The site
+Data flow: `CAMS + CPCB bulletin → saans-ingest → KV "bundle:v1" → saans-web`. The site
 only reads one KV value per render (memoised per isolate), so it keeps working
 if D1 or the ingest Worker has a bad hour.
 
@@ -30,7 +40,8 @@ if D1 or the ingest Worker has a bad hour.
 npm install
 npm test                 # engine + pipeline tests
 npm run check            # types: packages, worker, site (astro check)
-npm run gate -- 2026-09-20 2026-09-23   # reproduce CPCB's bulletin from the feed at 4 PM
+npm run gate -- 2026-09-20 2026-09-23   # reproduce CPCB's bulletin from the feed at 4 PM (retired feed)
+npm run calibrate        # relearn each city's model correction from stored bulletins
 npm run fixture -- 2026-09-25 --shift-to-now   # real-data dev bundle (needs npm run backfill first)
 npm run seed             # load the fixture into the site's local KV
 npm run dev              # site on http://127.0.0.1:4321 (runs on workerd, like production)

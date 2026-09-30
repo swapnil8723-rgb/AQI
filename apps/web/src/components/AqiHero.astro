@@ -33,7 +33,14 @@ function bulletinWhen(date: string): string {
   return d.hero.on4pm(shortDate(date, lang));
 }
 const dom = now?.dominant.map((p: Pollutant) => POLLUTANT_LABEL[p]).join(', ');
-const stationsText = now ? (now.valid === 1 ? d.hero.station1 : d.hero.stations(now.valid, now.total)) : '';
+// A modelled estimate has no stations behind it, so it never claims any.
+const stationsText = !now
+  ? ''
+  : now.source === 'cams'
+    ? d.hero.modelled
+    : now.valid === 1
+      ? d.hero.station1
+      : d.hero.stations(now.valid, now.total);
 const lastKnown = now ?? lastHour;
 ---
 <section

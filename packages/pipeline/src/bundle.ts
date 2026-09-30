@@ -1,4 +1,5 @@
 import { CITIES, feedKey, stationAnchors, type City } from '@saans/data';
+import { camsCityNow, type CamsCalibration, type CamsCity } from './cams.ts';
 import { rollupCity } from './city.ts';
 import { stationFlags } from './station.ts';
 import type {
@@ -7,6 +8,7 @@ import type {
   BundleBulletin,
   BundleStation,
   CityBundle,
+  CityNow,
   DayPoint,
   HourPoint,
   LiteStation,
@@ -19,8 +21,24 @@ import type { Pollutant } from '@saans/aqi';
 export const SOURCE =
   'Central Pollution Control Board (real-time data via data.gov.in and the daily AQI bulletin), Government Open Data License – India';
 
+/**
+ * Attribution while CPCB's hourly feed is down: the official daily figure is
+ * still CPCB's bulletin, but the live estimate between bulletins is modelled.
+ */
+export const SOURCE_CAMS =
+  'Central Pollution Control Board (daily AQI bulletin), Government Open Data License – India; live estimate from the Copernicus Atmosphere Monitoring Service (CAMS) via Open-Meteo, CC BY 4.0';
+
 export interface BundleInputs {
   stations: Station[];
+  /**
+   * Live estimate per launch city from a source other than stations (cams.ts).
+   * When present it replaces the station rollup for that city.
+   */
+  cityNow?: Record<string, CityNow | null>;
+  /** Cities for the national map when there are no stations to group. */
+  cams?: CamsCity[];
+  /** Per-city correction for the modelled estimate (cams.ts). */
+  calibration?: CamsCalibration;
   /** Last 24 hourly city estimates per launch city, oldest first. */
   hours?: Record<string, HourPoint[]>;
   /** Last 30 daily means per launch city, oldest first. */
@@ -31,6 +49,8 @@ export interface BundleInputs {
   lastYear?: Record<string, DayPoint>;
   accuracy?: Accuracy | null;
   now?: Date;
+  /** Overrides what the bundle reports as the live estimate's source. */
+  live?: 'cpcb' | 'cams';
 }
 
 function toBundleStation(s: Station, anchor: string): BundleStation {
@@ -73,7 +93,7 @@ export function buildCity(city: City, stations: Station[], inputs: BundleInputs)
   });
   return {
     slug: city.slug,
-    now: rollupCity(mine),
+    now: inputs.cityNow ? (inputs.cityNow[city.slug] ?? null) : rollupCity(mine),
     hours: inputs.hours?.[city.slug] ?? [],
     days: inputs.days?.[city.slug] ?? [],
     bulletin: inputs.bulletins?.[city.slug] ?? null,
@@ -88,7 +108,60 @@ export function buildBundle(inputs: BundleInputs): Bundle {
   const cities: Record<string, CityBundle> = {};
   for (const c of CITIES) cities[c.slug] = buildCity(c, stations, inputs);
 
-  // National map: every city in the feed, launch or not.
+  // Everything after the map is the same whichever source filled it.
+  const finish = (): Bundle => {
+    const anchorOf = new Map<string, string>();
+    for (const c of Object.values(cities)) for (const st of c.stations) anchorOf.set(st.id, st.anchor);
+    const lite: LiteStation[] = stations.map((s) => ({
+      p: s.place,
+      c: s.city,
+      s: s.citySlug,
+      h: anchorOf.get(s.id) ?? null,
+      la: round(s.lat, 4),
+      lo: round(s.lon, 4),
+      a: s.valid ? s.aqi : null,
+      u: s.valid ? s.us : null,
+      t: s.updatedAt,
+    }));
+    const live = inputs.live ?? (inputs.cams?.length ? 'cams' : 'cpcb');
+    const feedAt = live === 'cams'
+      ? (inputs.cams ?? []).reduce<string | null>((m, c) => (!m || c.at > m ? c.at : m), null)
+      : stations.reduce<string | null>((m, s) => (s.updatedAt && (!m || s.updatedAt > m) ? s.updatedAt : m), null);
+    return {
+      v: 1,
+      generatedAt: now.toISOString(),
+      feedAt,
+      accuracy: inputs.accuracy ?? null,
+      cities,
+      map,
+      stations: lite,
+      source: live === 'cams' ? SOURCE_CAMS : SOURCE,
+      live,
+    };
+  };
+
+  // National map: every city in the feed, launch or not. With no stations to
+  // group (cams.ts), the modelled cities carry the map instead; `n` is 0
+  // because no station stands behind the value.
+  const map: MapCity[] = [];
+  if (inputs.cams?.length) {
+    for (const c of inputs.cams) {
+      const launch = c.slug ? CITIES.find((x) => x.slug === c.slug) : undefined;
+      const now_ = launch ? cities[launch.slug]!.now : camsCityNow(c, inputs.calibration);
+      map.push({
+        name: launch?.en ?? c.name,
+        state: c.state,
+        slug: launch?.slug ?? null,
+        lat: launch?.lat ?? round(c.lat, 4),
+        lon: launch?.lon ?? round(c.lon, 4),
+        aqi: now_?.aqi ?? null,
+        n: 0,
+      });
+    }
+    map.sort((a, b) => a.name.localeCompare(b.name));
+    return finish();
+  }
+
   const groups = new Map<string, Station[]>();
   for (const s of stations) {
     const k = feedKey(s.city, s.state);
@@ -96,7 +169,6 @@ export function buildBundle(inputs: BundleInputs): Bundle {
     if (!a) groups.set(k, (a = []));
     a.push(s);
   }
-  const map: MapCity[] = [];
   for (const g of groups.values()) {
     const first = g[0]!;
     const launch = CITIES.find((c) => c.slug === first.citySlug);
@@ -112,21 +184,5 @@ export function buildBundle(inputs: BundleInputs): Bundle {
     });
   }
   map.sort((a, b) => a.name.localeCompare(b.name));
-
-  const anchorOf = new Map<string, string>();
-  for (const c of Object.values(cities)) for (const st of c.stations) anchorOf.set(st.id, st.anchor);
-  const lite: LiteStation[] = stations.map((s) => ({
-    p: s.place,
-    c: s.city,
-    s: s.citySlug,
-    h: anchorOf.get(s.id) ?? null,
-    la: round(s.lat, 4),
-    lo: round(s.lon, 4),
-    a: s.valid ? s.aqi : null,
-    u: s.valid ? s.us : null,
-    t: s.updatedAt,
-  }));
-
-  const feedAt = stations.reduce<string | null>((m, s) => (s.updatedAt && (!m || s.updatedAt > m) ? s.updatedAt : m), null);
-  return { v: 1, generatedAt: now.toISOString(), feedAt, accuracy: inputs.accuracy ?? null, cities, map, stations: lite, source: SOURCE };
+  return finish();
 }

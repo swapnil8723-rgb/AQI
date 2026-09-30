@@ -14,6 +14,9 @@ const { lang, bundle } = Astro.props;
 const d = t(lang);
 const hi = lang === 'hi';
 const acc = bundle?.accuracy ?? null;
+// While CPCB's station feed is down the live estimate is a corrected model,
+// so the station-era accuracy claim does not apply (AGENTS.md rule 5).
+const modelled = bundle?.live === 'cams';
 const pct = (a: number, b: number) => `${Math.round((100 * a) / b)}%`;
 const title = hi ? `हमारे बारे में और पद्धति | ${SITE.nameHi}` : `About & Methodology | ${SITE.name}`;
 const description = hi
@@ -99,7 +102,19 @@ const description = hi
       )}
 
       <h2 id="accuracy" class="t-h2 scroll-mt-24">{hi ? 'हमारी सटीकता' : 'Our accuracy'}</h2>
-      {hi ? (
+      {modelled ? (
+        hi ? (
+          <>
+            <p>सितंबर 2026 में CPCB ने हर घंटे का स्टेशन डेटा देना बंद कर दिया, इसलिए हमारा लाइव अनुमान अब <strong>मॉडल आधारित</strong> है — माप नहीं। हम इसे छिपाते नहीं।</p>
+            <p>बिना संशोधन के यह मॉडल भारत में बहुत ऊँचा पढ़ता है: 29 सितंबर 2026 के बुलेटिन से तुलना में हमारे 25 शहरों में से <strong>एक भी</strong> 10% के भीतर नहीं था। हर शहर के हाल के बुलेटिन से संशोधन के बाद लगभग <strong>44% शहर 10% के भीतर</strong> और <strong>96% शहर 50% के भीतर</strong> आते हैं। शाम 4 बजे का आधिकारिक आँकड़ा अब भी CPCB का अपना माप है और इससे अप्रभावित है।</p>
+          </>
+        ) : (
+          <>
+            <p>CPCB stopped publishing hourly station data in September 2026, so our live estimate is now <strong>modelled, not measured</strong>. We would rather say so than hide it.</p>
+            <p>Uncorrected, the model reads far too high over India: against the 29 Sep 2026 bulletin, <strong>none</strong> of our 25 cities were within 10%. After correcting each city against its own recent bulletins, about <strong>44% of cities land within 10%</strong> and <strong>96% within 50%</strong>. Treat it as a direction, not a reading. The official 4 PM figure is still CPCB’s own measurement and is unaffected.</p>
+          </>
+        )
+      ) : hi ? (
         <p>लॉन्च से पहले हमने जाँचा कि क्या हमारा तरीका CPCB का बुलेटिन दोहरा सकता है। 20 और 23 सितंबर 2026 को, शाम 4 बजे के फ़ीड से निकाला गया हमारा अनुमान <strong>478 में से 97% शहर-दिनों में बुलेटिन से 10% के भीतर</strong> था, और <strong>85% में बिल्कुल बराबर</strong>। हमारे 25 शहरों में 50 में से 49 शहर-दिन 10% के भीतर थे।</p>
       ) : (
         <p>Before launch we tested whether our method reproduces CPCB’s bulletin. On 20 and 23 Sep 2026, our estimate from the feed at 4 PM was <strong>within 10% of the bulletin for 97% of 478 city-days</strong>, and <strong>identical for 85%</strong>. For our 25 cities, 49 of 50 city-days were within 10%.</p>

@@ -85,7 +85,30 @@ apps/web (Astro SSR) reads KV (fast path) + D1 (charts/history) ─► edge cach
 ```
 
 ### 3.1 Sources (CPCB only in Season 1)
-- **Hourly station data:** CPCB via data.gov.in, the "Real time Air Quality Index from various locations" dataset. Free API key; fields: country, state, city, station, last_update, latitude, longitude, pollutant_id, pollutant_min, pollutant_max, pollutant_avg.
+
+> **Amendment, 30 Sep 2026 — the hourly station feed is gone.**
+> data.gov.in refuses connections (502/504, then no connection at all; its own
+> catalog endpoint and its own resource page fail too). CPCB's legacy JSON
+> endpoints answer 404 and the replacement Central Control Room app is an
+> obfuscated SPA behind OAuth. Every free redistributor went down with it:
+> WAQI's Indian stations last reported 2026-06-23, and OpenAQ carries no
+> Indian locations. This is also why aqi.in looks unaffected — they are not
+> downstream of CPCB at all, they own the sensors.
+>
+> **The daily bulletin is unaffected** and remains the official figure. The
+> hourly estimate in between is now **CAMS via Open-Meteo**, scored with
+> CPCB's own windows and sub-index and corrected per city against recent
+> bulletins (`packages/pipeline/src/cams.ts`). It is labelled as modelled
+> everywhere it appears, and it has no stations — so station pages, the
+> station map and the station-range row are dormant.
+>
+> **The accuracy claim below no longer holds while the number is modelled.**
+> Uncorrected CAMS matched 0% of launch cities within ±10% of the 29 Sep
+> bulletin; corrected, about 44% within 10% and 96% within 50%. `/about` must
+> publish that band, not the station-era figure. Restore the old claim only
+> if a real station feed returns.
+
+- **Hourly station data (retired):** CPCB via data.gov.in, the "Real time Air Quality Index from various locations" dataset. Free API key; fields: country, state, city, station, last_update, latitude, longitude, pollutant_id, pollutant_min, pollutant_max, pollutant_avg.
 - **Official daily city AQI:** CPCB's daily AQI bulletin (4 PM, 24-hour average). Columns are city, AQI, prominent pollutant(s), and stations participated/total. CPCB states that for multi-station cities the **average** of stations is used, and notes that averaging is not scientifically sound but is used for simplicity. That's exactly why we show both the bulletin and the stations. Parse the HTML table once a day, politely (one request, with a user-agent naming the site and a contact email), and keep the source link on the page.
 - Attribution on every page: *"Source: Central Pollution Control Board (daily bulletin and real-time data via data.gov.in, Government Open Data License – India)."* **Verify the licence text in week 0.**
 - **No third-party AQI numbers** (IQAir, WAQI/aqicn, AccuWeather) are displayed. Their terms restrict commercial reuse; WAQI's explicitly bars use in paid or commercial services without agreement. We *explain* why their numbers differ (US scale, different stations, low-cost sensors, averaging windows) without republishing them.

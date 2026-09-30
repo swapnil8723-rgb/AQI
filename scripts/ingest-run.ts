@@ -8,34 +8,38 @@
  *   node scripts/ingest-run.ts hourly
  *   node scripts/ingest-run.ts bulletin [YYYY-MM-DD]
  *   node scripts/ingest-run.ts archive  [YYYY-MM-DD]
- *   node scripts/ingest-run.ts hourly --from-archive 2026-09-23 16   (test with archived rows, no API key)
  *
- * Env: INGEST_URL (the Worker), INGEST_TOKEN, DATA_GOV_IN_KEY.
+ * The hourly estimate comes from CAMS (packages/pipeline/src/cams.ts) since
+ * CPCB's machine-readable feed went down in Sep 2026; it needs no API key.
+ * The official daily figure is still CPCB's bulletin, which is unaffected.
+ * `scripts/calibrate.ts` keeps the model's per-city correction up to date.
+ *
+ * Env: INGEST_URL (the Worker), INGEST_TOKEN.
  */
 import { gzipSync } from 'node:zlib';
-import { POLLUTANTS, type Pollutant } from '@saans/aqi';
+import { POLLUTANTS } from '@saans/aqi';
 import { CITIES } from '@saans/data';
 import {
   addDays,
-  applySpikeRule,
   buildBundle,
   buildReplay,
-  buildStations,
   bulletinCityKey,
   bulletinUrl,
+  camsCityNow,
   coordLookup,
-  fetchFeed,
+  fetchCams,
   istAt,
   istDate,
   istHour,
   istParts,
   parseBulletinText,
-  parseFeedRecords,
   slugForBulletinCity,
-  stationFlags,
   type Accuracy,
   type BundleBulletin,
+  type CamsCalibration,
+  type CamsSite,
   type CityCoord,
+  type CityNow,
   type DayPoint,
   type HourPoint,
 } from '@saans/pipeline';
@@ -68,6 +72,13 @@ const read = async <T>(name: string, a = '', b = ''): Promise<T> =>
   JSON.parse(await call('GET', `/read/${name}?a=${encodeURIComponent(a)}&b=${encodeURIComponent(b)}`)) as T;
 const d1 = (table: string, rows: unknown[]) => (rows.length ? call('POST', `/store/d1/${table}`, JSON.stringify(rows), { 'content-type': 'application/json' }) : Promise.resolve(''));
 const kv = (key: string, value: string) => call('PUT', `/store/kv/${encodeURIComponent(key)}`, value, { 'content-type': 'application/json' });
+const kvGet = async <T>(key: string): Promise<T | null> => {
+  try {
+    return JSON.parse(await call('GET', `/store/kv/${encodeURIComponent(key)}`)) as T;
+  } catch {
+    return null; // not written yet
+  }
+};
 const r2 = (key: string, bytes: Uint8Array, type: string, encoding?: string) =>
   call('PUT', `/store/r2/${key}`, bytes, { 'content-type': type, ...(encoding ? { 'x-content-encoding': encoding } : {}) });
 
@@ -108,72 +119,53 @@ async function timed<T>(job: 'hourly' | 'bulletin' | 'archive', fn: () => Promis
 }
 
 // ─── Hourly ─────────────────────────────────────────────────────────────
-async function archiveRecords(day: string, hour: number): Promise<unknown[]> {
-  const { feedAsOf, loadParquetDays } = await import('./lib/archive.ts');
-  const view = feedAsOf(await loadParquetDays([addDays(day, -1), day]), istAt(day, hour));
-  if (!view) throw new Error('no archived snapshot');
-  const ID: Record<string, string> = { pm25: 'PM2.5', pm10: 'PM10', no2: 'NO2', so2: 'SO2', co: 'CO', o3: 'OZONE', nh3: 'NH3' };
-  const lu = (iso: string) => {
-    const p = istParts(iso);
-    return `${pad(p.d)}-${pad(p.m)}-${p.y} ${pad(p.h)}:${pad(p.mi)}:00`;
-  };
-  const na = (v: number | null) => (v === null ? 'NA' : String(v));
-  return view.rows.map((r) => ({
-    country: 'India', state: r.state, city: r.city, station: r.station, last_update: r.updatedAt ? lu(r.updatedAt) : 'NA',
-    latitude: na(r.lat), longitude: na(r.lon), pollutant_id: ID[r.pollutant], min_value: na(r.lo), max_value: na(r.hi), avg_value: na(r.avg),
-  }));
+
+/**
+ * Every city the model is asked for: the launch cities plus every bulletin
+ * city we hold coordinates for, so the national map stays populated.
+ */
+async function camsSites(): Promise<CamsSite[]> {
+  const sites: CamsSite[] = CITIES.map((c) => ({ slug: c.slug, name: c.en, state: c.state, lat: c.lat, lon: c.lon }));
+  const seen = new Set(CITIES.map((c) => bulletinCityKey(c.bulletin)));
+  for (const co of await read<CityCoord[]>('coords')) {
+    const key = bulletinCityKey(co.city);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    sites.push({ slug: slugForBulletinCity(co.city), name: co.city, state: co.state, lat: co.lat, lon: co.lon });
+  }
+  return sites;
 }
 
-async function hourly(fromArchive?: { day: string; hour: number }) {
+/** Fewer cities than this means a broken response: keep the raw, publish nothing. */
+const MIN_CITIES = 20;
+
+async function hourly() {
   const now = new Date();
-  if (!fromArchive && !process.env.DATA_GOV_IN_KEY) throw new Error('DATA_GOV_IN_KEY is not set');
-  const records = fromArchive
-    ? await archiveRecords(fromArchive.day, fromArchive.hour)
-    : (await fetchFeed({ apiKey: process.env.DATA_GOV_IN_KEY ?? '', userAgent: UA, deadlineMs: 300_000 })).records;
+  const sites = await camsSites();
+  const cams = await fetchCams(sites, { userAgent: UA, now: now.getTime() });
 
-  // Raw first: exactly what the API said, before any parsing can fail.
+  // Raw first: exactly what the model said, before any parsing can fail.
   const p = istParts(now);
-  const rawKey = `raw/${p.y}/${pad(p.m)}/${pad(p.d)}/${pad(p.h)}${pad(p.mi)}-actions.json.gz`;
-  await r2(rawKey, gzipSync(JSON.stringify({ fetchedAt: now.toISOString(), source: fromArchive ? 'archive-test' : 'api', records })), 'application/json', 'gzip');
+  const rawKey = `raw/${p.y}/${pad(p.m)}/${pad(p.d)}/${pad(p.h)}${pad(p.mi)}-cams.json.gz`;
+  await r2(rawKey, gzipSync(JSON.stringify({ fetchedAt: now.toISOString(), source: 'cams', cities: cams })), 'application/json', 'gzip');
 
-  const parsed = parseFeedRecords(records);
-  if (parsed.rows.length < 1000) throw new Error(`only ${parsed.rows.length} usable rows (rejected ${parsed.rejected}); raw kept at ${rawKey}`);
-  let stations = buildStations(parsed.rows);
-  const feedAt = stations.reduce<string | null>((m, s) => (s.updatedAt && (!m || s.updatedAt > m) ? s.updatedAt : m), null);
+  if (cams.length < MIN_CITIES) throw new Error(`only ${cams.length} cities from CAMS; raw kept at ${rawKey}`);
+
+  // The correction learned from past bulletins (scripts/calibrate.ts). Absent
+  // on a cold start, and then the estimate runs ~2x hot until it is built.
+  const calibration = (await kvGet<CamsCalibration>('cams:calibration')) ?? {};
+  if (!Object.keys(calibration).length) console.log('::warning::no cams:calibration yet — run `node scripts/calibrate.ts`');
+
+  const feedAt = cams.reduce<string | null>((m, c) => (!m || c.at > m ? c.at : m), null);
   const hour = istHour(feedAt ?? now);
-  const prevObj = await read<Record<string, Partial<Record<Pollutant, number | null>>>>('prev', new Date(Date.parse(hour) - 3 * H).toISOString(), hour);
-  const prev = new Map<string, Partial<Record<Pollutant, number>>>();
-  for (const [id, v] of Object.entries(prevObj)) {
-    const o: Partial<Record<Pollutant, number>> = {};
-    for (const k of POLLUTANTS) if (typeof v[k] === 'number') o[k] = v[k] as number;
-    prev.set(id, o);
-  }
-  stations = applySpikeRule(stations, prev, feedAt ? Date.parse(feedAt) : null);
 
-  const today = istDate(now);
-  await d1('stations', stations.map((s) => ({ id: s.id, name: s.name, city: s.city, state: s.state, slug: s.citySlug, lat: s.lat, lon: s.lon, day: today })));
-  await d1(
-    'station_hour',
-    stations
-      .filter((s) => s.updatedAt)
-      .map((s) => {
-        const lo: Record<string, number> = {};
-        const hi: Record<string, number> = {};
-        const row: Record<string, unknown> = { id: s.id, hour: istHour(s.updatedAt!) };
-        for (const k of POLLUTANTS) {
-          const r = s.readings[k];
-          row[k] = r ? r.i : null;
-          if (r?.lo != null) lo[k] = r.lo;
-          if (r?.hi != null) hi[k] = r.hi;
-        }
-        return { ...row, lo: JSON.stringify(lo), hi: JSON.stringify(hi), flags: stationFlags(s).join(',') || null, aqi: s.aqi, us: s.us, dominant: s.dominant.join(',') || null, valid: s.valid ? 1 : 0 };
-      }),
-  );
+  const cityNow: Record<string, CityNow | null> = {};
+  for (const c of cams) if (c.slug) cityNow[c.slug] = camsCityNow(c, calibration);
 
-  const first = buildBundle({ stations, now });
-  const cityRows = CITIES.map((c) => ({ c, n: first.cities[c.slug]?.now })).filter((x) => x.n);
+  const cityRows = CITIES.map((c) => ({ c, n: cityNow[c.slug] })).filter((x) => x.n);
   await d1('city_hour', cityRows.map(({ c, n }) => ({ slug: c.slug, hour, aqi: n!.aqi, min: n!.min, max: n!.max, valid: n!.valid, total: n!.total, dominant: n!.dominant.join(','), us: n!.us })));
 
+  const today = istDate(now);
   const lastYearDate = `${Number(today.slice(0, 4)) - 1}${today.slice(4)}`;
   const [hoursRaw, bulls, lyRaw, acc] = await Promise.all([
     read<{ s: string; t: string; aqi: number; u: number | null; n: number }[]>('hours', new Date(Date.parse(hour) - 23 * H).toISOString(), hour),
@@ -191,9 +183,16 @@ async function hourly(fromArchive?: { day: string; hour: number }) {
   }
   const lastYear: Record<string, DayPoint> = {};
   for (const r of lyRaw) lastYear[r.s] = { d: r.d, aqi: r.aqi };
-  const bundle = buildBundle({ stations, hours, days, bulletins, lastYear, accuracy: acc?.n ? acc : null, now });
+  const bundle = buildBundle({ stations: [], cityNow, cams, calibration, live: 'cams', hours, days, bulletins, lastYear, accuracy: acc?.n ? acc : null, now });
   await kv('bundle:v1', JSON.stringify(bundle));
-  return { rows: parsed.rows.length, rejected: parsed.rejected, stations: stations.length, valid: stations.filter((s) => s.valid).length, feedAt, raw: rawKey };
+  return {
+    source: 'cams',
+    cities: cams.length,
+    rows: cityRows.length,
+    calibrated: Object.keys(calibration).length,
+    feedAt,
+    raw: rawKey,
+  };
 }
 
 // ─── 4 PM bulletin ──────────────────────────────────────────────────────
@@ -270,9 +269,7 @@ async function archive(date: string) {
 // ─── Entry ──────────────────────────────────────────────────────────────
 const args = process.argv.slice(2).filter(Boolean);
 const job = args[0] ?? 'auto';
-const dateArg = args.find((a) => /^\d{4}-\d{2}-\d{2}$/.test(a) && args[args.indexOf(a) - 1] !== '--from-archive');
-const fa = args.indexOf('--from-archive');
-const fromArchive = fa >= 0 ? { day: args[fa + 1]!, hour: Number(args[fa + 2] ?? 16) } : undefined;
+const dateArg = args.find((a) => /^\d{4}-\d{2}-\d{2}$/.test(a));
 const nowMs = Date.now();
 const istHourNow = istParts(nowMs).h;
 const today = istDate(nowMs);
@@ -292,7 +289,7 @@ const attempt = async (name: string, fn: () => Promise<unknown>) => {
 if (job === 'bulletin' || (job === 'auto' && istHourNow >= 17 && istHourNow <= 21)) {
   await attempt('bulletin', () => timed('bulletin', () => bulletin(dateArg ?? today, job === 'auto' && istHourNow >= 21)));
 }
-if (job === 'hourly' || job === 'auto') await attempt('hourly', () => timed('hourly', () => hourly(fromArchive)));
+if (job === 'hourly' || job === 'auto') await attempt('hourly', () => timed('hourly', () => hourly()));
 // Just after midnight IST: yesterday's archive.
 if (job === 'archive' || (job === 'auto' && istHourNow === 0)) {
   await attempt('archive', () => timed('archive', () => archive(dateArg ?? addDays(today, -1))));

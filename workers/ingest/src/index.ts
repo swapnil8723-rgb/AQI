@@ -1,12 +1,12 @@
 /**
- * saans-ingest: hourly CPCB feed → archive, daily bulletin reconciliation,
+ * saans-ingest: hourly CAMS estimate → archive, daily CPCB bulletin reconciliation,
  * nightly archive dump. See PLAN.md §3 and README.md.
  *
  * HTTP (all JSON):
  *   GET  /health                 public: last run of each job, bundle age
  *   GET  /v1/bundle.json         public: the hourly bundle (for a site hosted off Cloudflare, e.g. Vercel)
  *   GET  /v1/replay.json         public: 30 days of official daily AQI (home map replay)
- *   POST /ingest                 Bearer INGEST_TOKEN; body = data.gov.in records (array or {records})
+ *   POST /ingest                 retired (410): CPCB stopped publishing the feed in Sep 2026
  *   POST /run/hourly             Bearer; run the hourly job now
  *   POST /run/bulletin?date=     Bearer; fetch and reconcile a bulletin (default: today IST)
  *   POST /run/archive?date=      Bearer; dump a day to R2 (default: yesterday IST)
@@ -110,12 +110,12 @@ export default {
     if (date && !DATE.test(date)) return json({ error: 'date must be YYYY-MM-DD' }, 400);
     try {
       switch (url.pathname) {
-        case '/ingest': {
-          const body = (await req.json()) as unknown;
-          const records = Array.isArray(body) ? body : (body as { records?: unknown[] }).records;
-          if (!Array.isArray(records)) return json({ error: 'expected an array of records or {records: [...]}' }, 400);
-          return json(await run(env, 'hourly', () => hourly(env, records)));
-        }
+        // Retired with the feed it carried: /ingest accepted data.gov.in rows
+        // pushed from elsewhere, for the case where CPCB blocked Cloudflare's
+        // IPs. CPCB stopped publishing the feed entirely in Sep 2026, so there
+        // is nothing to push. The hourly estimate needs no key — use /run/hourly.
+        case '/ingest':
+          return json({ error: 'retired: CPCB stopped publishing the feed in Sep 2026; use POST /run/hourly' }, 410);
         case '/run/hourly':
           return json(await run(env, 'hourly', () => hourly(env)));
         case '/run/bulletin':

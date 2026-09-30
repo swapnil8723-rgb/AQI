@@ -1,21 +1,21 @@
 import { CITIES } from '@saans/data';
 import {
-  applySpikeRule,
   buildBundle,
-  buildStations,
   bulletinUrl,
-  fetchFeed,
+  camsCityNow,
+  fetchCams,
   istDate,
   istHour,
   istParts,
-  parseFeedRecords,
+  type CamsCalibration,
+  type CamsSite,
   type CityNow,
 } from '@saans/pipeline';
-import { accuracy, bulletinDays, cityHours, lastYearBulletins, latestBulletins, previousReadings, writeCityHours, writeStationHours } from './db.ts';
-import { BUNDLE_KEY, userAgent, type Env } from './env.ts';
+import { accuracy, bulletinDays, cityHours, lastYearBulletins, latestBulletins, writeCityHours } from './db.ts';
+import { BUNDLE_KEY, CALIBRATION_KEY, userAgent, type Env } from './env.ts';
 
-/** Fewer usable rows than this means a broken or partial feed: archive it, publish nothing. */
-export const MIN_ROWS = 1000;
+/** Fewer cities than this means a broken response: archive it, publish nothing. */
+export const MIN_CITIES = 20;
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -35,45 +35,45 @@ async function archiveRaw(env: Env, at: Date, records: unknown[], source: string
 }
 
 export interface HourlyResult {
+  source: 'cams';
+  cities: number;
   rows: number;
-  rejected: number;
-  stations: number;
-  valid: number;
+  calibrated: number;
   feedAt: string | null;
   raw: string;
 }
 
 /**
- * The hourly job: fetch → archive raw → parse → flag → D1 → KV bundle.
- * `records` lets the push endpoint (POST /ingest) supply rows fetched
- * elsewhere, if data.gov.in ever stops answering Cloudflare's IPs.
+ * The hourly job: fetch → archive raw → score → D1 → KV bundle.
+ *
+ * The live estimate comes from CAMS (packages/pipeline/src/cams.ts) because
+ * CPCB's machine-readable feed went down in Sep 2026 and every free
+ * redistributor of it went down too. The official daily figure is still
+ * CPCB's bulletin, handled by bulletin.ts. `cities` lets a caller supply
+ * sites; by default the launch cities are used.
+ *
+ * On the Workers Free plan this is dormant — the same job runs in GitHub
+ * Actions (scripts/ingest-run.ts), which also covers the whole map.
  */
-export async function hourly(env: Env, records?: unknown[]): Promise<HourlyResult> {
+export async function hourly(env: Env, sites?: CamsSite[]): Promise<HourlyResult> {
   const now = new Date();
-  const source = records ? 'push' : 'api';
-  if (!records) {
-    if (!env.DATA_GOV_IN_KEY) throw new Error('DATA_GOV_IN_KEY is not set');
-    records = (await fetchFeed({ apiKey: env.DATA_GOV_IN_KEY, userAgent: userAgent(env), deadlineMs: 180_000 })).records;
-  }
-  const raw = await archiveRaw(env, now, records, source);
+  const use: CamsSite[] = sites ?? CITIES.map((c) => ({ slug: c.slug, name: c.en, state: c.state, lat: c.lat, lon: c.lon }));
+  const cams = await fetchCams(use, { userAgent: userAgent(env), now: now.getTime() });
+  const raw = await archiveRaw(env, now, cams, 'cams');
 
-  const parsed = parseFeedRecords(records);
-  if (parsed.rows.length < MIN_ROWS) {
-    throw new Error(`only ${parsed.rows.length} usable rows (rejected ${parsed.rejected}); raw kept at ${raw}`);
-  }
-  let stations = buildStations(parsed.rows);
-  const feedAt = stations.reduce<string | null>((m, s) => (s.updatedAt && (!m || s.updatedAt > m) ? s.updatedAt : m), null);
+  if (cams.length < MIN_CITIES) throw new Error(`only ${cams.length} cities from CAMS; raw kept at ${raw}`);
+
+  const calibration = ((await env.KV.get(CALIBRATION_KEY, 'json')) as CamsCalibration | null) ?? {};
+  const feedAt = cams.reduce<string | null>((m, c) => (!m || c.at > m ? c.at : m), null);
   const hour = istHour(feedAt ?? now);
-  stations = applySpikeRule(stations, await previousReadings(env.DB, hour), feedAt ? Date.parse(feedAt) : null);
+
+  const nows: Record<string, CityNow | null> = {};
+  for (const c of cams) if (c.slug) nows[c.slug] = camsCityNow(c, calibration);
+  for (const c of CITIES) nows[c.slug] ??= null;
+  await writeCityHours(env.DB, hour, nows);
 
   const today = istDate(now);
-  await writeStationHours(env.DB, stations, today);
-
-  // Build once to get each launch city's live estimate, store it, then rebuild with history.
-  const first = buildBundle({ stations, now });
-  const nows: Record<string, CityNow | null> = {};
-  for (const c of CITIES) nows[c.slug] = first.cities[c.slug]?.now ?? null;
-  await writeCityHours(env.DB, hour, nows);
+  const stations: never[] = [];
 
   const [hours, days, bulletins, acc, lastYear] = await Promise.all([
     cityHours(env.DB, hour),
@@ -82,14 +82,14 @@ export async function hourly(env: Env, records?: unknown[]): Promise<HourlyResul
     accuracy(env.DB),
     lastYearBulletins(env.DB, today),
   ]);
-  const bundle = buildBundle({ stations, hours, days, bulletins, lastYear, accuracy: acc, now });
+  const bundle = buildBundle({ stations, cityNow: nows, cams, calibration, live: 'cams', hours, days, bulletins, lastYear, accuracy: acc, now });
   await env.KV.put(BUNDLE_KEY, JSON.stringify(bundle));
 
   return {
-    rows: parsed.rows.length,
-    rejected: parsed.rejected,
-    stations: stations.length,
-    valid: stations.filter((s) => s.valid).length,
+    source: 'cams',
+    cities: cams.length,
+    rows: Object.values(nows).filter(Boolean).length,
+    calibrated: Object.keys(calibration).length,
     feedAt,
     raw,
   };

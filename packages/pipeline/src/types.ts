@@ -128,6 +128,13 @@ export interface CityNow {
   pollutants: Partial<Record<Pollutant, { i: number; c: number; n: number }>>;
   /** Readings left out as abnormal this hour. */
   excluded: number;
+  /**
+   * Where the live estimate came from. Absent or 'cpcb' means the mean of
+   * valid CPCB stations. 'cams' means the modelled city value (cams.ts), which
+   * has no stations behind it — `valid` and `total` are then 0 and the page
+   * must say the number is modelled.
+   */
+  source?: 'cpcb' | 'cams';
 }
 
 export interface HourPoint {
@@ -205,4 +212,6 @@ export interface Bundle {
   map: MapCity[];
   stations: LiteStation[];
   source: string;
+  /** What powered this hour's live estimate. 'cams' bundles carry no stations. */
+  live?: 'cpcb' | 'cams';
 }
