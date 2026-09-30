@@ -62,7 +62,7 @@ const READS: Record<string, string> = {
       'prominent', prominent, 'used', used, 'total', total, 'ours', ours)), '[]') AS j FROM bulletin WHERE date = ?1 AND ?2 = ?2`,
 };
 
-const KV_KEYS = new Set(['bundle:v1', 'replay:30d', 'ingest:status']);
+const KV_KEYS = new Set(['bundle:v1', 'replay:30d', 'ingest:status', 'cams:calibration']);
 
 const out = (body: string, status = 200) =>
   new Response(body, { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });

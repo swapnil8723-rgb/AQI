@@ -18,7 +18,7 @@
  */
 import { gzipSync } from 'node:zlib';
 import { POLLUTANTS } from '@saans/aqi';
-import { CITIES } from '@saans/data';
+import { CITIES, CITY_COORDS } from '@saans/data';
 import {
   addDays,
   buildBundle,
@@ -38,7 +38,6 @@ import {
   type BundleBulletin,
   type CamsCalibration,
   type CamsSite,
-  type CityCoord,
   type CityNow,
   type DayPoint,
   type HourPoint,
@@ -124,10 +123,13 @@ async function timed<T>(job: 'hourly' | 'bulletin' | 'archive', fn: () => Promis
  * Every city the model is asked for: the launch cities plus every bulletin
  * city we hold coordinates for, so the national map stays populated.
  */
-async function camsSites(): Promise<CamsSite[]> {
+function camsSites(): CamsSite[] {
   const sites: CamsSite[] = CITIES.map((c) => ({ slug: c.slug, name: c.en, state: c.state, lat: c.lat, lon: c.lon }));
   const seen = new Set(CITIES.map((c) => bulletinCityKey(c.bulletin)));
-  for (const co of await read<CityCoord[]>('coords')) {
+  // CITY_COORDS is checked in (@saans/data). It used to come from the D1
+  // `stations` table, which only the station feed filled — that table is empty
+  // for good now, and reading it would leave the map with 25 dots.
+  for (const co of CITY_COORDS) {
     const key = bulletinCityKey(co.city);
     if (seen.has(key)) continue;
     seen.add(key);
@@ -141,7 +143,7 @@ const MIN_CITIES = 20;
 
 async function hourly() {
   const now = new Date();
-  const sites = await camsSites();
+  const sites = camsSites();
   const cams = await fetchCams(sites, { userAgent: UA, now: now.getTime() });
 
   // Raw first: exactly what the model said, before any parsing can fail.
@@ -228,7 +230,8 @@ async function bulletin(date: string, final: boolean) {
 
   // The home map's 30-day replay.
   const from = addDays(date, -29);
-  const [rows, coords] = await Promise.all([read<{ c: string; d: string; aqi: number }[]>('bulletins_all', from, date), read<CityCoord[]>('coords')]);
+  const rows = await read<{ c: string; d: string; aqi: number }[]>('bulletins_all', from, date);
+  const coords = [...CITY_COORDS];
   const byDate: Record<string, { city: string; aqi: number }[]> = {};
   for (const r of rows) (byDate[r.d] ??= []).push({ city: r.c, aqi: r.aqi });
   const dates = Array.from({ length: 30 }, (_, i) => addDays(from, i));

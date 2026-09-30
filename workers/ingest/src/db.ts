@@ -1,5 +1,5 @@
 import { POLLUTANTS, type Pollutant } from '@saans/aqi';
-import { CITIES } from '@saans/data';
+import { CITIES, CITY_COORDS } from '@saans/data';
 import {
   addDays,
   buildReplay,
@@ -174,13 +174,15 @@ export async function lastYearBulletins(db: D1Database, today: string): Promise<
 /** The home map's 30-day replay: every city in the bulletin, located by its stations. */
 export async function replay30(db: D1Database, lastDay: string): Promise<Replay> {
   const dates = Array.from({ length: 30 }, (_, i) => addDays(lastDay, i - 29));
-  const [{ results: rows }, { results: coords }] = await Promise.all([
-    db.prepare('SELECT date, city, aqi FROM bulletin WHERE date >= ? AND date <= ?').bind(dates[0], lastDay).all<{ date: string; city: string; aqi: number }>(),
-    db.prepare('SELECT city, state, AVG(lat) AS lat, AVG(lon) AS lon FROM stations GROUP BY city, state').all<{ city: string; state: string; lat: number; lon: number }>(),
-  ]);
+  const { results: rows } = await db
+    .prepare('SELECT date, city, aqi FROM bulletin WHERE date >= ? AND date <= ?')
+    .bind(dates[0], lastDay)
+    .all<{ date: string; city: string; aqi: number }>();
   const byDate: Record<string, { city: string; aqi: number }[]> = {};
   for (const r of rows) (byDate[r.date] ??= []).push({ city: r.city, aqi: r.aqi });
-  return buildReplay(dates, byDate, coordLookup(coords));
+  // Coordinates are checked in rather than averaged from the `stations` table:
+  // that table is filled only by the station feed, which is gone for good.
+  return buildReplay(dates, byDate, coordLookup([...CITY_COORDS]));
 }
 
 export const LAUNCH_SLUGS = CITIES.map((c) => c.slug);
