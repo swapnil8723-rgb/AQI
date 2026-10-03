@@ -137,7 +137,7 @@ const TOP = ['delhi', 'mumbai', 'bengaluru', 'kolkata', 'chennai', 'hyderabad', 
                   {m.slug ? (
                     <a href={localePath(lang, `/aqi/${m.slug}`)} class="flex-1 truncate underline underline-offset-2 decoration-[var(--color-ring-strong)] hover:decoration-current">{cityName(m)}</a>
                   ) : (
-                    <span class="flex-1 truncate text-[var(--color-fg-muted)]" title={m.state}>{cityName(m)}</span>
+                    <a href={`${localePath(lang, '/')}#map=7/${m.lat}/${m.lon}`} class="flex-1 truncate text-[var(--color-fg-muted)] underline underline-offset-2 decoration-dotted decoration-[var(--color-ring-strong)] hover:decoration-current" title={m.state}>{cityName(m)}</a>
                   )}
                   <span class="font-mono tabular">{m.aqi}</span>
                 </li>

@@ -172,6 +172,10 @@ export interface MapCity {
   lon: number;
   aqi: number | null;
   n: number;
+  /** US EPA AQI of the same value, for the map card when the scale is US. */
+  us?: number | null;
+  /** When the value is for (the model hour, or the newest station). */
+  at?: string | null;
 }
 
 /** Compact all-India station list for the client-side nearest-station search. */

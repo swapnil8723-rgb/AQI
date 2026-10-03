@@ -1,7 +1,8 @@
 /**
  * The home map, enhanced: zoom and pan (zoom.ts), labels that follow the
- * camera, every CPCB station once zoomed past 2.5× (fetched on demand), a
- * #map=zoom/lat/lon deep link, and the replay of CPCB's official daily AQI.
+ * camera, every CPCB station once zoomed past 2.5× (fetched on demand) — or,
+ * while there is no station feed, the cities themselves as numbered pins past
+ * 5× — a #map=zoom/lat/lon deep link, and the replay of CPCB's official daily AQI.
  */
 import { attachZoom, type View } from './zoom.ts';
 
@@ -35,6 +36,8 @@ if (root) {
   const stationLayer = root.querySelector<SVGGElement>('[data-station-layer]')!;
   const loading = root.querySelector<HTMLElement>('[data-stations-loading]');
   let stations: 'none' | 'loading' | 'done' = 'none';
+  const noStations = root.hasAttribute('data-no-stations');
+  let pins = false;
   const hhmm = (iso: string | null) => {
     if (!iso) return '';
     const d = new Date(Date.parse(iso) + 330 * 60_000);
@@ -119,11 +122,31 @@ if (root) {
     }
   }
 
+  /** Numbers inside the city dots, built the first time they are needed (deep zoom, no station feed). */
+  function cityPins() {
+    if (pins) return;
+    pins = true;
+    for (const a of root!.querySelectorAll<SVGAElement>('.city-layer a[data-card]')) {
+      const dot = a.querySelector<SVGCircleElement>('.map-dot');
+      if (!dot || !a.dataset.v) continue;
+      dot.classList.add('pin');
+      const num = document.createElementNS(SVGNS, 'text');
+      num.setAttribute('class', 'st-num');
+      num.setAttribute('x', dot.getAttribute('cx') ?? '0');
+      num.setAttribute('y', dot.getAttribute('cy') ?? '0');
+      num.dataset.aqi = dot.dataset.aqi ?? 'none';
+      num.dataset.aqiUs = dot.dataset.aqiUs ?? 'none';
+      num.innerHTML = `<tspan class="v-n">${a.dataset.v}</tspan><tspan class="v-us">${a.dataset.u || '–'}</tspan>`;
+      a.append(num);
+    }
+  }
+
   const zoom = attachZoom(root, (v) => {
     place(v);
     root.toggleAttribute('data-deep', v.k >= 2.5);
     root.toggleAttribute('data-deeper', v.k >= 5);
-    if (v.k >= 2.5) void loadStations();
+    if (v.k >= 2.5 && !noStations) void loadStations();
+    if (v.k >= 5 && noStations) cityPins();
   }, 16);
 
   // #map=zoom/lat/lon (search results for cities without a page link here).
@@ -133,9 +156,22 @@ if (root) {
     const [x, y] = project(Number(m[2]), Number(m[3]));
     zoom.zoomTo(x, y, Math.min(16, Number(m[1])), false);
     root!.scrollIntoView({ block: 'center' });
+    // Came from a city's card or list row: open that city's card again, now in view.
+    // Blur first: the tapped dot may still hold focus, and re-focusing it would not reopen the card.
+    const dot = [...root!.querySelectorAll<SVGAElement>('.city-layer a[data-card]')].find((a) => a.getAttribute('href')?.endsWith(location.hash));
+    dot?.blur();
+    dot?.focus({ preventScroll: true });
   }
   fromHash();
   addEventListener('hashchange', fromHash);
+  // The same #map link again (zoomed out since, or a second tap) fires no hashchange: apply it anyway.
+  document.addEventListener('click', (e) => {
+    const a = e.target instanceof Element ? e.target.closest<HTMLAnchorElement>('a[href*="#map="]') : null;
+    // A dot's first tap only opens its card (mapcards.ts prevents that click), so skip those.
+    if (e.defaultPrevented || !a || !location.hash || !a.getAttribute('href')!.endsWith(location.hash)) return;
+    e.preventDefault();
+    fromHash();
+  });
   addEventListener('resize', () => zoom && place(zoom.view()));
   if (zoom) place(zoom.view());
 

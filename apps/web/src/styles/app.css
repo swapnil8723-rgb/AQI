@@ -193,19 +193,20 @@ a { color: inherit; text-underline-offset: 3px; }
 .map-dot { fill: var(--aqi-fill); stroke: var(--color-bg); stroke-width: 2; vector-effect: non-scaling-stroke; r: calc(var(--r, 6) * 1px / var(--z, 1)); transition: fill 250ms var(--ease-out); }
 .map-dot.thin { stroke-width: 1; }
 .hit { fill: transparent; r: calc(var(--r, 12) * 1px / var(--z, 1)); }
-.ctx-dot { fill: var(--aqi-fill); opacity: .85; r: calc(var(--r, 3) * 1px / var(--z, 1)); }
 .severe-ring { fill: none; stroke: var(--color-severe); stroke-opacity: .3; stroke-width: 3; vector-effect: non-scaling-stroke; r: calc(var(--r, 9) * 1px / var(--z, 1)); }
 [data-map] a:focus-visible .map-dot, [data-map] a[aria-current] .map-dot { stroke: var(--color-fg); stroke-width: 4; }
-/* India map layers by zoom: the NCR inset gives way to real positions; stations appear. */
+/* India map layers by zoom: the NCR inset gives way to real positions; stations replace the
+   cities — unless there is no station feed, when the cities stay and become numbered pins. */
 [data-india] .ncr-main { display: none; }
 [data-india][data-deep] .ncr-main { display: inline; }
-[data-india][data-deep] .ncr-inset, [data-india][data-deep] .city-layer, [data-india][data-deep] .lbl-inset { display: none; }
+[data-india][data-deep] .ncr-inset, [data-india][data-deep] .lbl-inset { display: none; }
+[data-india][data-deep]:not([data-no-stations]) .city-layer { display: none; }
 [data-india]:not([data-deep]) [data-station-layer] { display: none; }
 [data-india] .lbl-minor { display: none; }
 [data-india][data-zoomed] .lbl-minor { display: block; }
 .st-dot { --r: 4.5; }
 /* Deep zoom: station pins with their number, fixed on screen (12 px radius, 10 px text). */
-[data-deeper] .st-dot { r: calc(12px / (var(--z, 1) * var(--s, 1))); }
+[data-deeper] .st-dot, [data-deeper] .pin { r: calc(12px / (var(--z, 1) * var(--s, 1))); }
 .st-num { display: none; font-family: var(--font-mono); font-size: calc(9.5px / (var(--z, 1) * var(--s, 1))); font-weight: 600; text-anchor: middle; dominant-baseline: central; fill: var(--aqi-on); pointer-events: none; }
 [data-deeper] .st-num { display: inline; }
 [data-india][data-mode="replay"] .live-layer, [data-india][data-mode="replay"] .lbl-inset { display: none; }

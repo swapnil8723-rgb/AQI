@@ -156,6 +156,8 @@ export function buildBundle(inputs: BundleInputs): Bundle {
         lon: launch?.lon ?? round(c.lon, 4),
         aqi: now_?.aqi ?? null,
         n: 0,
+        us: now_?.us ?? null,
+        at: now_?.at ?? null,
       });
     }
     map.sort((a, b) => a.name.localeCompare(b.name));
@@ -181,6 +183,8 @@ export function buildBundle(inputs: BundleInputs): Bundle {
       lon: launch?.lon ?? round(g.reduce((a, s) => a + s.lon, 0) / g.length, 4),
       aqi: now_?.aqi ?? null,
       n: g.length,
+      us: now_?.us ?? null,
+      at: now_?.at ?? null,
     });
   }
   map.sort((a, b) => a.name.localeCompare(b.name));

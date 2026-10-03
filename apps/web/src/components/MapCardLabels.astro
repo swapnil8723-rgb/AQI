@@ -5,12 +5,18 @@ import { catLabel, usLabel } from '../lib/aqi-ui.ts';
 interface Props {
   lang: Lang;
   link: string;
+  /** Action for a dot whose href only moves the map (#map=…). */
+  zoom?: string;
+  /** Second line for dots that carry only data-st (their state). */
+  ctx?: string;
 }
-const { lang, link } = Astro.props;
+const { lang, link, zoom, ctx } = Astro.props;
 const labels = {
   n: [25, 75, 150, 250, 350, 450].map((v) => catLabel(v, lang)),
   u: [25, 75, 125, 175, 250, 400].map((v) => usLabel(v, lang)),
   link,
+  zoom,
+  ctx,
   none: t(lang).insufficient,
 };
 ---

@@ -3,13 +3,17 @@
  * Home map (DESIGN.md §4.16, PLAN.md §5.3 A): India's official boundary,
  * pre-projected at build time. Works with JS off (every city dot is a link).
  * With JS (scripts/indiamap.ts): zoom and pan; zoom in past 2.5× and every
- * CPCB station appears with its live AQI; and a replay of CPCB's official
- * daily AQI (last 30 days, Diwali 2025).
+ * CPCB station appears with its live AQI (cities stay instead while there is
+ * no station feed); past 5× each dot shows its number; and a replay of
+ * CPCB's official daily AQI (last 30 days, Diwali 2025).
+ *
+ * Every dot is a link with a card: the 25 launch cities open their page; the
+ * other CPCB cities have no page, so theirs zooms the map to them.
  */
 import { CITIES } from '@saans/data';
 import { t, localePath, type Lang } from '../i18n/index.ts';
 import { CATEGORY_LABEL, NAQI_ROWS, US_ROWS, US_LABEL, catLabel, slotN, slotU } from '../lib/aqi-ui.ts';
-import { relative } from '../lib/format.ts';
+import { relative, shortDate } from '../lib/format.ts';
 import { INDIA, projectIndia, projectNcr, r1 } from '../lib/map.ts';
 import type { Bundle } from '../lib/bundle.ts';
 import MapCardLabels from './MapCardLabels.astro';
@@ -47,6 +51,7 @@ const launch = CITIES.filter((c) => c.live).map((c) => {
   };
 });
 const launchNames = new Set(CITIES.map((c) => c.feed.city.toLowerCase()));
+// Every other CPCB city, worst drawn last so it sits on top where dots overlap.
 const context = (bundle?.map ?? [])
   .filter((m) => m.slug === null && m.aqi !== null && !launchNames.has(m.name.toLowerCase()))
   .map((m) => {
@@ -54,16 +59,27 @@ const context = (bundle?.map ?? [])
     return { m, x: r1(x), y: r1(y) };
   })
   .sort((a, b) => (a.m.aqi ?? 0) - (b.m.aqi ?? 0));
+const modelled = bundle?.live === 'cams';
+// With no station feed, zooming in keeps the cities rather than swapping in an empty station layer.
+const noStations = !bundle?.stations?.length;
+const home = localePath(lang, '/');
+// Shared tail of the context cards' second line (one value per render, so it is not repeated per dot).
+const ctxLine = `${modelled ? d.map.modelled : d.hero.live}${bundle?.feedAt ? ` · ${relative(bundle.feedAt, lang)}` : ''}`;
 /** Always-on labels (the 8 largest cities); the side keeps them off neighbours. The rest appear when zoomed. */
 const MAJOR: Record<string, 'l' | 'r'> = { mumbai: 'l', bengaluru: 'l', ahmedabad: 'l', jaipur: 'l', kolkata: 'r', chennai: 'r', hyderabad: 'r', lucknow: 'r' };
 const name = (c: (typeof CITIES)[number]) => (lang === 'hi' ? c.hi : c.en);
+const bulletinOf = (slug: string) => {
+  const b = bundle?.cities[slug]?.bulletin;
+  return b ? `${d.map.official} · ${shortDate(b.date, lang)}: ${b.aqi}` : '';
+};
 const dotLink = (c: (typeof CITIES)[number], now: (typeof launch)[number]['now']) => ({
   href: localePath(lang, `/aqi/${c.slug}`),
   'data-card': '',
   'data-n': name(c),
   'data-v': now?.aqi ?? '',
   'data-u': now?.us ?? '',
-  'data-s': now ? `${d.hero.live} · ${relative(now.at, lang)}` : '',
+  'data-s': now ? `${now.source === 'cams' ? d.map.modelled : d.hero.live} · ${relative(now.at, lang)}` : '',
+  'data-o': bulletinOf(c.slug),
   'aria-label': `${name(c)}, AQI ${now ? `${now.aqi}, ${catLabel(now.aqi, lang)}` : d.insufficient}`,
 });
 const pct = (v: number, of: number) => `${((v / of) * 100).toFixed(2)}%`;
@@ -90,6 +106,7 @@ const hint = lang === 'hi' ? 'ज़ूम: Ctrl + स्क्रॉल, पि
     data-india
     data-mercator={JSON.stringify(INDIA.mercator)}
     data-base={localePath(lang, '/aqi/')}
+    data-no-stations={noStations ? '' : undefined}
     tabindex="-1"
   >
     <div class="relative">
@@ -98,9 +115,20 @@ const hint = lang === 'hi' ? 'ज़ूम: Ctrl + स्क्रॉल, पि
         <path d={INDIA.borders} fill="none" stroke="var(--color-ring-strong)" stroke-width="0.5" vector-effect="non-scaling-stroke" />
 
         <g class="live-layer">
-          <g aria-hidden="true" class="city-layer">
+          <g class="city-layer">
             {context.map(({ m, x, y }) => (
-              <circle cx={x} cy={y} style="--r:3" data-aqi={slotN(m.aqi)} class="ctx-dot"><title>{m.name}: {m.aqi}</title></circle>
+              <a
+                href={`${home}#map=7/${m.lat}/${m.lon}`}
+                data-card
+                data-n={m.name}
+                data-st={m.state}
+                data-v={m.aqi}
+                data-u={m.us ?? ''}
+                aria-label={`${m.name}, ${m.state}: AQI ${m.aqi}, ${catLabel(m.aqi!, lang)}`}
+              >
+                <circle cx={x} cy={y} style="--r:8" class="hit" />
+                <circle cx={x} cy={y} style="--r:3.5" data-aqi={slotN(m.aqi)} data-aqi-us={slotU(m.us ?? null)} class="map-dot thin" />
+              </a>
             ))}
           </g>
           <g class="ncr-inset" aria-hidden="true">
@@ -160,7 +188,7 @@ const hint = lang === 'hi' ? 'ज़ूम: Ctrl + स्क्रॉल, पि
     </div>
     <MapControls lang={lang} />
     <div class="map-card raised absolute z-10 w-[220px] p-4 hidden" data-map-card role="status"></div>
-    <MapCardLabels lang={lang} link={d.map.view} />
+    <MapCardLabels lang={lang} link={d.map.view} zoom={d.map.zoomHere} ctx={ctxLine} />
     <script type="application/json" data-map-text set:html={JSON.stringify(mapText)} />
   </div>
 
