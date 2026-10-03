@@ -9,8 +9,8 @@
  * Only fixed statements run — no SQL arrives over HTTP.
  *
  *   POST /store/d1/{stations|station_hour|city_hour|bulletin}   body: JSON array
- *   PUT  /store/kv/{bundle:v1|replay:30d|ingest:status}          body: the value
- *   GET  /store/kv/ingest:status                                  the run status
+ *   PUT  /store/kv/{bundle:v1|replay:30d|ingest:status|cams:calibration}   body: the value
+ *   GET  /store/kv/{ingest:status|cams:calibration}               the run status; the model correction
  *   PUT  /store/r2/{key}                                          body: the object
  *   GET  /read/{name}?a=&b=                                       one JSON document
  */
@@ -63,6 +63,8 @@ const READS: Record<string, string> = {
 };
 
 const KV_KEYS = new Set(['bundle:v1', 'replay:30d', 'ingest:status', 'cams:calibration']);
+/** Readable too: the hourly job needs the status and the correction it applies. */
+const KV_READ = new Set(['ingest:status', 'cams:calibration']);
 
 const out = (body: string, status = 200) =>
   new Response(body, { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
@@ -78,7 +80,7 @@ export async function store(req: Request, env: Env, url: URL): Promise<Response 
   }
   if (area === 'store' && kind === 'kv' && req.method === 'GET') {
     const key = decodeURIComponent(rest.join('/'));
-    if (key !== 'ingest:status') return out('{"error":"unknown key"}', 404);
+    if (!KV_READ.has(key)) return out('{"error":"unknown key"}', 404);
     return out((await env.KV.get(key)) ?? 'null');
   }
   if (area === 'store' && kind === 'kv' && req.method === 'PUT') {

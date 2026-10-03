@@ -11,7 +11,9 @@
   "main": "@astrojs/cloudflare/entrypoints/server",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
-  "assets": { "directory": "./dist", "binding": "ASSETS" },
+  // html_handling none: serve public/*.html (the Search Console file) as-is,
+  // not 307 to an extensionless URL. Pages are SSR, so nothing else is affected.
+  "assets": { "directory": "./dist", "binding": "ASSETS", "html_handling": "none" },
   "kv_namespaces": [{ "binding": "KV", "id": "5c4dcfe8473a4d29a40124f41f85e5fe" }],
   "vars": {
     // Optional: Google AdSense publisher id ("ca-pub-…"). Ad slots render only when set.
