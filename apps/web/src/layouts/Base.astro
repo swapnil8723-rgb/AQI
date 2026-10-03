@@ -63,9 +63,10 @@ const searchIndex = CITIES.filter((c) => c.live).map((c) => ({
   s: c.slug, en: c.en, hi: c.hi, st: lang === 'hi' ? c.stateHi : c.state, a: c.aliases,
   q: bundle?.cities[c.slug]?.now?.aqi ?? null, u: bundle?.cities[c.slug]?.now?.us ?? null,
 }));
-const vars = env as { CF_BEACON_TOKEN?: string; ADSENSE_CLIENT?: string };
+const vars = env as { CF_BEACON_TOKEN?: string; ADSENSE_CLIENT?: string; GOOGLE_SITE_VERIFICATION?: string };
 const cfToken = vars.CF_BEACON_TOKEN;
 const adsense = vars.ADSENSE_CLIENT;
+const gsc = vars.GOOGLE_SITE_VERIFICATION;
 ---
 <!doctype html>
 <html lang={lang} data-lang={lang}>
@@ -79,6 +80,7 @@ const adsense = vars.ADSENSE_CLIENT;
     <link rel="alternate" hreflang="hi-IN" href={hiUrl} />
     <link rel="alternate" hreflang="x-default" href={enUrl} />
     {noindex && <meta name="robots" content="noindex" />}
+    {gsc && <meta name="google-site-verification" content={gsc} />}
     <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0A0A0A" media="(prefers-color-scheme: dark)" />
     <link rel="icon" href={favicon(FILL[slot])} type="image/svg+xml" data-living-icon />

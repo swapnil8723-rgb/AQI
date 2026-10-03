@@ -151,7 +151,8 @@ const en = {
     button: 'Share today’s air',
     made: 'Image ready',
     whatsapp: 'Send on WhatsApp',
-    text: (city: string, aqi: number, cat: string, url: string) => `${city} air right now: AQI ${aqi} (${cat}), live estimate from CPCB stations. ${url}`,
+    text: (city: string, aqi: number, cat: string, url: string, modelled: boolean) =>
+      `${city} air right now: AQI ${aqi} (${cat}), ${modelled ? 'modelled live estimate' : 'live estimate from CPCB stations'}. ${url}`,
   },
   faq: { title: 'Questions' },
   near: {
@@ -168,6 +169,8 @@ const en = {
   home: {
     title: 'How’s the air where you are?',
     lede: 'Live air quality for Indian cities from CPCB’s own monitoring stations — with the official number, our hourly estimate and every station side by side.',
+    /** While CPCB's station feed is down (AGENTS.md rule 1). */
+    ledeModelled: 'Air quality for Indian cities: CPCB’s official daily number, and our hourly estimate in between — modelled while CPCB’s stations are offline, and labelled as such.',
     yourCity: 'Your city',
     pick: 'Pick your city',
     details: 'See full details',
@@ -176,6 +179,7 @@ const en = {
     rankNote: 'All CPCB-monitored cities, live estimate. Cities without a page are listed by name.',
     map: 'India right now',
     mapNote: 'Live estimate per city. Larger dots have more stations.',
+    mapNoteModelled: 'Modelled live estimate per city.',
     teaserTitle: 'What is AQI?',
     teaser: 'AQI turns six pollutants into one number from 0 to 500. India uses CPCB’s National AQI; many apps show the US scale instead.',
     teaserLink: 'AQI explained',
@@ -334,7 +338,7 @@ const hi: Dict = {
     button: 'आज की हवा शेयर करें',
     made: 'तस्वीर तैयार',
     whatsapp: 'WhatsApp पर भेजें',
-    text: (city, aqi, cat, url) => `${city} की हवा अभी: AQI ${aqi} (${cat}), CPCB स्टेशनों से लाइव अनुमान। ${url}`,
+    text: (city, aqi, cat, url, modelled) => `${city} की हवा अभी: AQI ${aqi} (${cat}), ${modelled ? 'मॉडल आधारित लाइव अनुमान' : 'CPCB स्टेशनों से लाइव अनुमान'}। ${url}`,
   },
   faq: { title: 'सवाल-जवाब' },
   near: {
@@ -351,6 +355,7 @@ const hi: Dict = {
   home: {
     title: 'आपके आसपास की हवा कैसी है?',
     lede: 'भारतीय शहरों की लाइव वायु गुणवत्ता, CPCB के अपने निगरानी स्टेशनों से — आधिकारिक नंबर, हमारा घंटेवार अनुमान और हर स्टेशन, एक साथ।',
+    ledeModelled: 'भारतीय शहरों की वायु गुणवत्ता: CPCB का आधिकारिक दैनिक नंबर, और बीच में हमारा घंटेवार अनुमान — CPCB स्टेशन बंद रहने तक मॉडल आधारित, और साफ़ लिखा हुआ।',
     yourCity: 'आपका शहर',
     pick: 'अपना शहर चुनें',
     details: 'पूरी जानकारी देखें',
@@ -359,6 +364,7 @@ const hi: Dict = {
     rankNote: 'CPCB की निगरानी वाले सभी शहर, लाइव अनुमान। जिन शहरों का पेज नहीं है, उनका सिर्फ़ नाम है।',
     map: 'भारत अभी',
     mapNote: 'हर शहर का लाइव अनुमान। बड़े बिंदु = ज़्यादा स्टेशन।',
+    mapNoteModelled: 'हर शहर का मॉडल आधारित लाइव अनुमान।',
     teaserTitle: 'AQI क्या है?',
     teaser: 'AQI छह प्रदूषकों को 0 से 500 के एक नंबर में बदलता है। भारत में CPCB का राष्ट्रीय AQI चलता है; कई ऐप अमेरिकी पैमाना दिखाते हैं।',
     teaserLink: 'AQI समझें',

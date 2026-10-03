@@ -65,13 +65,18 @@ const title = live
     ? `${name} AQI आज · लाइव वायु गुणवत्ता | ${SITE.nameHi}`
     : `${name} AQI Today · Live Air Quality | ${SITE.name}`;
 const bul = cb?.bulletin;
-const description = live
+// A modelled estimate has no stations behind it, so the snippet claims none.
+const description = live?.source === 'cams'
+  ? lang === 'hi'
+    ? `${name} की वायु गुणवत्ता: मॉडल आधारित लाइव अनुमान AQI ${live.aqi} (${catWord}), मुख्य प्रदूषक ${dom(live.dominant)}।${bul ? ` आधिकारिक CPCB बुलेटिन: ${bul.aqi}।` : ''} हर घंटे अपडेट।`
+    : `Air quality in ${name}: modelled live estimate AQI ${live.aqi} (${catWord}), ${dom(live.dominant)} main pollutant.${bul ? ` Official CPCB bulletin: ${bul.aqi}.` : ''} Updated hourly.`
+  : live
   ? lang === 'hi'
     ? `${name} की लाइव वायु गुणवत्ता: AQI ${live.aqi} (${catWord}), मुख्य प्रदूषक ${dom(live.dominant)}, ${live.valid} CPCB स्टेशन, दायरा ${live.min}–${live.max}.${bul ? ` आधिकारिक CPCB बुलेटिन: ${bul.aqi}.` : ''} हर घंटे अपडेट।`
     : `Live air quality in ${name}: AQI ${live.aqi} (${catWord}), ${dom(live.dominant)} main pollutant, ${live.valid} CPCB stations ranging ${live.min}–${live.max}.${bul ? ` Official CPCB bulletin: ${bul.aqi}.` : ''} Updated hourly.`
   : lang === 'hi'
-    ? `${name} की वायु गुणवत्ता: CPCB स्टेशनों का लाइव अनुमान, आधिकारिक बुलेटिन और हर स्टेशन।`
-    : `Air quality in ${name}: live estimate from CPCB stations, the official bulletin and every station.`;
+    ? `${name} की वायु गुणवत्ता: लाइव अनुमान और आधिकारिक CPCB बुलेटिन।`
+    : `Air quality in ${name}: our live estimate and the official CPCB bulletin.`;
 
 const origin = Astro.site?.origin ?? SITE.origin;
 const url = new URL(localePath(lang, `/aqi/${city.slug}`), origin).href;
@@ -86,8 +91,8 @@ const faq: { q: string; a: string }[] = [];
 if (live) {
   faq.push(
     lang === 'hi'
-      ? { q: `${name} का AQI अभी कितना है?`, a: `${whenHi} ${name} का लाइव अनुमान ${live.aqi} (${catWord}) है — ${live.total} में से ${live.valid} CPCB स्टेशनों का औसत।${bul ? ` ${longDate(bul.date, lang)} के आधिकारिक CPCB बुलेटिन (शाम 4 बजे) में ${bul.aqi} (${catLabel(bul.aqi, lang)}) था।` : ''}` }
-      : { q: `What is ${name}'s AQI right now?`, a: `${name}'s live estimate is ${live.aqi} (${catWord}) at ${whenEn}, the average of ${live.valid} of ${live.total} CPCB stations.${bul ? ` CPCB's official 4 PM bulletin for ${longDate(bul.date, lang)} was ${bul.aqi} (${catLabel(bul.aqi, lang)}).` : ''}` },
+      ? { q: `${name} का AQI अभी कितना है?`, a: `${whenHi} ${name} का लाइव अनुमान ${live.aqi} (${catWord}) है — ${live.source === 'cams' ? 'मॉडल आधारित, क्योंकि CPCB स्टेशन बंद हैं' : `${live.total} में से ${live.valid} CPCB स्टेशनों का औसत`}।${bul ? ` ${longDate(bul.date, lang)} के आधिकारिक CPCB बुलेटिन (शाम 4 बजे) में ${bul.aqi} (${catLabel(bul.aqi, lang)}) था।` : ''}` }
+      : { q: `What is ${name}'s AQI right now?`, a: `${name}'s live estimate is ${live.aqi} (${catWord}) at ${whenEn}, ${live.source === 'cams' ? 'modelled while CPCB’s stations are offline' : `the average of ${live.valid} of ${live.total} CPCB stations`}.${bul ? ` CPCB's official 4 PM bulletin for ${longDate(bul.date, lang)} was ${bul.aqi} (${catLabel(bul.aqi, lang)}).` : ''}` },
   );
   if (worst && cleanest && worst.id !== cleanest.id) {
     const top3 = valid.slice(0, 3).map((s) => `${s.place} (${s.aqi})`).join(', ');
@@ -102,8 +107,8 @@ if (live) {
   if (p0 && pc) {
     faq.push(
       lang === 'hi'
-        ? { q: `${name} में आज मुख्य प्रदूषक कौन-सा है?`, a: `${POLLUTANT_LABEL[p0]} — ${name} के स्टेशनों में इसका औसत सब-इंडेक्स सबसे ऊँचा (${pc.i}) है, यानी लगभग ${pc.c} ${p0 === 'co' ? 'mg/m³' : 'µg/m³'}।` }
-        : { q: `What is the main pollutant in ${name} today?`, a: `${POLLUTANT_LABEL[p0]} has the highest average sub-index across ${name}'s stations (${pc.i}), about ${pc.c} ${p0 === 'co' ? 'mg/m³' : 'µg/m³'}.` },
+        ? { q: `${name} में आज मुख्य प्रदूषक कौन-सा है?`, a: `${POLLUTANT_LABEL[p0]} — ${live.source === 'cams' ? `मॉडल में ${name} का` : `${name} के स्टेशनों में इसका औसत`} सब-इंडेक्स सबसे ऊँचा (${pc.i}) है, यानी लगभग ${pc.c} ${p0 === 'co' ? 'mg/m³' : 'µg/m³'}।` }
+        : { q: `What is the main pollutant in ${name} today?`, a: `${POLLUTANT_LABEL[p0]} has the highest ${live.source === 'cams' ? `modelled sub-index in ${name}` : `average sub-index across ${name}'s stations`} (${pc.i}), about ${pc.c} ${p0 === 'co' ? 'mg/m³' : 'µg/m³'}.` },
     );
   }
   if (category) {
@@ -145,9 +150,9 @@ function cardText(l: Lang): CardText {
     official: bul ? `${dl.hero.official} (${shortDate(bul.date, l)}, 4 PM): ${bul.aqi}` : null,
     lastYear: cb?.lastYear ? (l === 'hi' ? `पिछले साल आज (CPCB): ${cb.lastYear.aqi} · ${catLabel(cb.lastYear.aqi, l)}` : `Same day last year (CPCB): ${cb.lastYear.aqi} · ${catLabel(cb.lastYear.aqi, l)}`) : null,
     hoursLabel: dl.hours.title,
-    scaleLine: l === 'hi' ? 'राष्ट्रीय AQI · CPCB स्टेशन' : 'NATIONAL AQI · CPCB STATIONS',
+    scaleLine: live?.source === 'cams' ? (l === 'hi' ? 'राष्ट्रीय AQI · मॉडल आधारित' : 'NATIONAL AQI · MODELLED') : l === 'hi' ? 'राष्ट्रीय AQI · CPCB स्टेशन' : 'NATIONAL AQI · CPCB STATIONS',
     usLine: l === 'hi' ? 'अमेरिकी EPA पैमाना (तुलना के लिए)' : 'US EPA SCALE (FOR COMPARISON)',
-    text: live ? dl.share.text(nm, live.aqi, cw, u) : u,
+    text: live ? dl.share.text(nm, live.aqi, cw, u, live.source === 'cams') : u,
   };
 }
 const share: ShareCard | null = live

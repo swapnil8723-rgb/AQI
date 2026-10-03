@@ -35,7 +35,8 @@ const cities = CITIES.filter((c) => c.live).map((c) => {
     a: ok ? now.aqi : null, u: ok ? now.us : null,
     c: ok ? catLabel(now.aqi, lang) : null, cu: ok && now.us !== null ? usLabel(now.us, lang) : null,
     m: ok ? now.dominant.map((p: Pollutant) => POLLUTANT_LABEL[p]).join(', ') : null,
-    v: ok ? now.valid : 0, t: ok ? now.at : null,
+    // null = modelled: no stations behind it, so the card names none.
+    v: ok ? (now.source === 'cams' ? null : now.valid) : 0, t: ok ? now.at : null,
   };
 });
 
@@ -54,8 +55,14 @@ const diwali = md >= '11-06' && md <= '11-10';
 const delhi = bundle?.cities.delhi;
 
 const title = lang === 'hi' ? `AQI आज: भारत की लाइव वायु गुणवत्ता, शहर-दर-शहर | ${SITE.nameHi}` : `AQI Today: Live Air Quality in India, City by City | ${SITE.name}`;
-const description =
-  lang === 'hi'
+// While CPCB's station feed is down the live number is a model with no
+// stations behind it, so neither the lede nor the search snippet claims any.
+const modelled = bundle?.live === 'cams';
+const description = modelled
+  ? lang === 'hi'
+    ? 'अपने शहर का AQI देखें: CPCB का आधिकारिक दैनिक बुलेटिन और हर घंटे का मॉडल आधारित अनुमान, अलग-अलग। सबसे प्रदूषित और सबसे साफ़ शहर, भारत के नक्शे पर।'
+    : 'AQI for your city: CPCB’s official daily bulletin and our hourly modelled estimate, kept apart. Most polluted and cleanest cities on a live India map.'
+  : lang === 'hi'
     ? 'अपने शहर का लाइव AQI देखें: CPCB स्टेशनों से हर घंटे का अनुमान, आधिकारिक बुलेटिन और हर स्टेशन। सबसे प्रदूषित और सबसे साफ़ शहर, लाइव नक्शे पर।'
     : 'Live AQI for your city from CPCB stations: our hourly estimate, the official bulletin and every station, side by side. Most polluted and cleanest cities on a live India map.';
 const jsonLd = [
@@ -78,7 +85,7 @@ const TOP = ['delhi', 'mumbai', 'bengaluru', 'kolkata', 'chennai', 'hyderabad', 
   <div class="mx-auto max-w-[1200px] px-4 md:px-6 lg:px-8 pt-8 md:pt-12 grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-10">
     <div class="lg:col-span-5">
       <h1 class="t-display">{d.home.title}</h1>
-      <p class="t-body-lg text-[var(--color-fg-muted)] mt-4">{d.home.lede}</p>
+      <p class="t-body-lg text-[var(--color-fg-muted)] mt-4">{modelled ? d.home.ledeModelled : d.home.lede}</p>
 
       <form action={localePath(lang, '/search')} method="get" role="search" class="mt-7">
         <label class="search-hero flex items-center gap-3 px-4 cursor-text">
@@ -180,7 +187,7 @@ const TOP = ['delhi', 'mumbai', 'bengaluru', 'kolkata', 'chennai', 'hyderabad', 
     </section>
   </div>
 
-  <script type="application/json" id="home-cities" set:html={JSON.stringify({ cities, t: { live: d.hero.live, details: d.home.details, approx: d.near.approx('%s'), nearest: d.near.nearest, far: d.near.far('%k', '%n'), unavailable: d.near.unavailable, finding: d.near.finding, use: d.near.use, open: d.near.open('%s'), base: localePath(lang, '/aqi/'), insufficient: d.insufficient } })} />
+  <script type="application/json" id="home-cities" set:html={JSON.stringify({ cities, t: { live: d.hero.live, details: d.home.details, approx: d.near.approx('%s'), nearest: d.near.nearest, far: d.near.far('%k', '%n'), unavailable: d.near.unavailable, finding: d.near.finding, use: d.near.use, open: d.near.open('%s'), base: localePath(lang, '/aqi/'), insufficient: d.insufficient, modelled: d.hero.modelled } })} />
   <script>
     import '../scripts/home.ts';
   </script>

@@ -7,11 +7,11 @@ import { haversineKm, loadStations, nearest, NEAR_KM, permissionGranted, positio
 
 interface C {
   s: string; en: string; hi: string; la: number; lo: number;
-  a: number | null; u: number | null; c: string | null; cu: string | null; m: string | null; v: number; t: string | null;
+  a: number | null; u: number | null; c: string | null; cu: string | null; m: string | null; v: number | null; t: string | null;
 }
 interface T {
   live: string; details: string; approx: string; nearest: string; far: string; unavailable: string;
-  finding: string; use: string; open: string; base: string; insufficient: string;
+  finding: string; use: string; open: string; base: string; insufficient: string; modelled: string;
 }
 
 const raw = document.getElementById('home-cities')?.textContent;
@@ -53,7 +53,7 @@ function showCity(c: C, extra?: HTMLElement) {
     (cat.children[1] as HTMLElement).textContent = c.cu ?? '';
   } else cat.textContent = t.insufficient;
   left.append(cat);
-  if (c.m) left.append(el('p', 't-small font-mono text-[var(--color-fg-subtle)] mt-0.5', `${c.m} · ${c.v} ${lang === 'hi' ? 'स्टेशन' : c.v === 1 ? 'station' : 'stations'}`));
+  if (c.m) left.append(el('p', 't-small font-mono text-[var(--color-fg-subtle)] mt-0.5', `${c.m} · ${c.v === null ? t.modelled : `${c.v} ${lang === 'hi' ? 'स्टेशन' : c.v === 1 ? 'station' : 'stations'}`}`));
   const num = el('p', 'font-mono tabular text-[56px] leading-none font-semibold tracking-[-0.04em] px-3 py-2 rounded-[8px]');
   num.dataset.aqi = slotOf(c.a);
   num.dataset.aqiUs = slotOf(c.u, true);

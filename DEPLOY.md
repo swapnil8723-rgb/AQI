@@ -172,6 +172,18 @@ $env:SITE_URL="https://your-domain.in"; npm run deploy
 ## 4. After launch (both options)
 
 - **Search Console:** add the domain → submit `https://your-domain.in/sitemap.xml`.
+  - **On the temporary `*.workers.dev` / `*.vercel.app` address** a Domain
+    property is impossible (no DNS to edit). Add a **URL prefix** property for
+    the exact address, pick **HTML tag**, and put only the `content="…"` value
+    in `GOOGLE_SITE_VERIFICATION` (`apps/web/wrangler.jsonc` vars, or a Vercel
+    environment variable), redeploy, then press Verify. Keep the value set —
+    removing it un-verifies the property.
+  - Submit the sitemap only once `/health` says `"healthy": true`: city pages
+    are `noindex` until they have had data in the last 72 hours.
+  - **When you buy a domain later:** add it to the Worker, redeploy with
+    `SITE_URL` set to it, verify it as a Domain property, 301-redirect the old
+    address to it, then use Search Console's *Change of address* tool on the
+    old property.
 - **Watch it:** `/health` on the Worker (503 = data older than 2 h, or 2 failed runs). Telegram alerts arrive on the second failed run and whenever a city's 4 PM estimate differs from CPCB's bulletin by more than 10%.
 - **GRAP:** when CAQM issues an order, edit `packages/data/src/grap.ts` and redeploy the site.
 - **If the estimate drifts from the bulletin:** run `npm run calibrate` (it runs daily at 22:15 IST anyway). It relearns each city's correction from the stored bulletins; a city needs 3 bulletin days before it gets its own factor.

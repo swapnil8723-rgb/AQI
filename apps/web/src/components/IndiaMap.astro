@@ -187,7 +187,7 @@ const hint = lang === 'hi' ? 'ज़ूम: Ctrl + स्क्रॉल, पि
         </li>
       ))}
     </ul>
-    <p class="t-small text-[var(--color-fg-subtle)] mt-2" data-map-note>{d.home.mapNote} {lang === 'hi' ? 'ज़ूम करें तो हर स्टेशन दिखेगा।' : 'Zoom in to see every station.'} {d.map.attribution}</p>
+    <p class="t-small text-[var(--color-fg-subtle)] mt-2" data-map-note>{bundle?.live === 'cams' ? d.home.mapNoteModelled : `${d.home.mapNote} ${lang === 'hi' ? 'ज़ूम करें तो हर स्टेशन दिखेगा।' : 'Zoom in to see every station.'}`} {d.map.attribution}</p>
     <p class="t-small text-[var(--color-fg-subtle)] mt-2 hidden" data-replay-note>{mapText.replayNote}</p>
   </figcaption>
 </figure>

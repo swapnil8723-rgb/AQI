@@ -17,7 +17,10 @@
     // Optional: Google AdSense publisher id ("ca-pub-…"). Ad slots render only when set.
     "ADSENSE_CLIENT": "",
     // Optional: Cloudflare Web Analytics token (cookieless).
-    "CF_BEACON_TOKEN": ""
+    "CF_BEACON_TOKEN": "",
+    // Optional: Search Console "HTML tag" verification — the content="…" value only.
+    // Needed on a *.workers.dev address, where DNS verification is impossible.
+    "GOOGLE_SITE_VERIFICATION": ""
   },
   "observability": { "enabled": true }
 }

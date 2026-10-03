@@ -45,7 +45,7 @@ const description = hi
         <>
           <h3 class="t-h3">1. डेटा स्रोत</h3>
           <ul>
-            <li><strong>लाइव स्टेशन डेटा:</strong> data.gov.in पर CPCB का “Real time Air Quality Index from various locations” डेटासेट (लगभग 500 स्टेशन, हर घंटे)। हम इसे हर घंटे :20 पर लेते हैं।</li>
+            {modelled ? <li><strong>लाइव अनुमान (मॉडल आधारित):</strong> सितंबर 2026 से CPCB का हर घंटे का स्टेशन फ़ीड बंद है। तब तक घंटेवार अनुमान Copernicus (CAMS) मॉडल से आता है, Open-Meteo के ज़रिए: CPCB की अवधि पर औसत, CPCB के सब-इंडेक्स से आँका और हर शहर के हाल के बुलेटिन से संशोधित। नीचे खंड 2–4 स्टेशन वाला तरीका बताते हैं, जो फ़ीड लौटने तक बंद है।</li> : <li><strong>लाइव स्टेशन डेटा:</strong> data.gov.in पर CPCB का “Real time Air Quality Index from various locations” डेटासेट (लगभग 500 स्टेशन, हर घंटे)। हम इसे हर घंटे :20 पर लेते हैं।</li>}
             <li><strong>आधिकारिक दैनिक शहर AQI:</strong> CPCB का शाम 4 बजे का AQI बुलेटिन (PDF), हर शाम। 2015 से अब तक के बुलेटिन भी हमने संग्रहित किए हैं।</li>
             <li>हम किसी दूसरे ऐप या निजी सेंसर नेटवर्क के नंबर नहीं दिखाते।</li>
           </ul>
@@ -74,7 +74,7 @@ const description = hi
         <>
           <h3 class="t-h3">1. Sources</h3>
           <ul>
-            <li><strong>Live station data:</strong> CPCB’s “Real time Air Quality Index from various locations” dataset on data.gov.in (about 500 stations, hourly). We fetch it every hour at :20.</li>
+            {modelled ? <li><strong>Live estimate (modelled):</strong> CPCB’s hourly station feed has been down since September 2026. Until it returns, the hourly estimate comes from the Copernicus (CAMS) model via Open-Meteo: averaged over CPCB’s windows, scored with CPCB’s sub-index and corrected against each city’s recent bulletins. Sections 2–4 below describe the station method, which is dormant until the feed returns.</li> : <li><strong>Live station data:</strong> CPCB’s “Real time Air Quality Index from various locations” dataset on data.gov.in (about 500 stations, hourly). We fetch it every hour at :20.</li>}
             <li><strong>Official daily city AQI:</strong> CPCB’s 4 PM AQI bulletin (a PDF), every evening. We have also archived every bulletin back to 2015.</li>
             <li>We do not show numbers from other apps or private sensor networks.</li>
           </ul>

@@ -19,8 +19,9 @@ const kv = {
   },
 };
 
-export const env: { KV?: typeof kv; ADSENSE_CLIENT?: string; CF_BEACON_TOKEN?: string; [key: string]: unknown } = {
+export const env: { KV?: typeof kv; ADSENSE_CLIENT?: string; CF_BEACON_TOKEN?: string; GOOGLE_SITE_VERIFICATION?: string; [key: string]: unknown } = {
   KV: DATA_URL ? kv : undefined,
   ADSENSE_CLIENT: process.env.ADSENSE_CLIENT,
   CF_BEACON_TOKEN: process.env.CF_BEACON_TOKEN,
+  GOOGLE_SITE_VERIFICATION: process.env.GOOGLE_SITE_VERIFICATION,
 };

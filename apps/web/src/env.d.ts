@@ -12,6 +12,7 @@ declare module 'cloudflare:workers' {
     KV?: KVNamespace;
     ADSENSE_CLIENT?: string;
     CF_BEACON_TOKEN?: string;
+    GOOGLE_SITE_VERIFICATION?: string;
     [key: string]: unknown;
   };
 }
