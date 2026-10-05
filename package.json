@@ -21,6 +21,7 @@
     "fixture": "node scripts/fixture.ts",
     "fixture:cams": "node scripts/fixture-cams.ts",
     "map": "node scripts/build-map.ts",
+    "favicons": "node scripts/favicons.ts",
     "deploy:ingest": "npm run deploy -w @saans/ingest",
     "deploy:web": "npm run deploy -w @saans/web",
     "smoke": "node scripts/smoke.ts",

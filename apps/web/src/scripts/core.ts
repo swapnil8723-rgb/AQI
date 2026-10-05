@@ -101,7 +101,7 @@ if (rememberedSlot && FILL[rememberedSlot]) {
   });
   const icon = document.querySelector<HTMLLinkElement>('link[data-living-icon]');
   if (icon) {
-    icon.href = `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#171717"/><circle cx="16" cy="16" r="8" fill="${FILL[rememberedSlot]}"/></svg>`)}`;
+    icon.href = `/icon/${rememberedSlot}.svg`;
   }
 }
 

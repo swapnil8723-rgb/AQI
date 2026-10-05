@@ -41,11 +41,8 @@ const enUrl = new URL(localePath('en', path), origin).href;
 const hiUrl = new URL(localePath('hi', path), origin).href;
 const ogImage = new URL('/og.png', origin).href;
 
-const FILL: Record<SlotName, string> = {
-  good: '#00B050', satisfactory: '#92D050', moderate: '#FFE600', poor: '#FF9900', verypoor: '#FF0000', severe: '#A50021', none: '#FFFFFF',
-};
-const favicon = (fill: string) =>
-  `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="#171717"/><circle cx="16" cy="16" r="8" fill="${fill}"/></svg>`)}`;
+// A real URL, never a data: URI — Google's favicon crawler ignores those.
+const favicon = slot === 'none' ? '/favicon.svg' : `/icon/${slot}.svg`;
 
 const feedState = bundle ? freshness(bundle.feedAt) : 'stale';
 // Devanagari: the system copy first. Android (most of our readers) ships Noto
@@ -83,7 +80,8 @@ const gsc = vars.GOOGLE_SITE_VERIFICATION;
     {gsc && <meta name="google-site-verification" content={gsc} />}
     <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0A0A0A" media="(prefers-color-scheme: dark)" />
-    <link rel="icon" href={favicon(FILL[slot])} type="image/svg+xml" data-living-icon />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href={favicon} type="image/svg+xml" data-living-icon />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="preload" href={geistLatin} as="font" type="font/woff2" crossorigin />
     <style set:html={devaFaces}></style>
