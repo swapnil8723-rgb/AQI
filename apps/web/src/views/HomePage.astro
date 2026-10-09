@@ -78,11 +78,20 @@ const jsonLd = [
       'query-input': 'required name=q',
     },
   },
+  // Lets Google show the brand and its logo; the icon is 180 px (its minimum is 112).
+  {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: SITE.name,
+    url: new URL('/', origin).href,
+    logo: new URL('/apple-touch-icon.png', origin).href,
+    email: SITE.contact,
+  },
 ];
 const TOP = ['delhi', 'mumbai', 'bengaluru', 'kolkata', 'chennai', 'hyderabad', 'pune', 'lucknow'];
 ---
 <Base lang={lang} title={title} description={description} path="/" bundle={bundle} jsonLd={jsonLd} sticky="home">
-  <div class="mx-auto max-w-[1200px] px-4 md:px-6 lg:px-8 pt-8 md:pt-12 grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-10">
+  <div class="mx-auto max-w-[1200px] px-4 md:px-6 lg:px-8 pt-6 md:pt-12 grid grid-cols-1 gap-8 lg:grid-cols-12 lg:gap-10">
     <div class="lg:col-span-5">
       <h1 class="t-display">{d.home.title}</h1>
       <p class="t-body-lg text-[var(--color-fg-muted)] mt-4">{modelled ? d.home.ledeModelled : d.home.lede}</p>
@@ -150,7 +159,7 @@ const TOP = ['delhi', 'mumbai', 'bengaluru', 'kolkata', 'chennai', 'hyderabad', 
     </div>
 
     <div class="lg:col-span-7">
-      <div class="flex items-baseline justify-between mb-3">
+      <div class="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 mb-3">
         <h2 class="t-h3">{d.home.map}</h2>
         {bundle?.feedAt && (
           <p class="t-small font-mono text-[var(--color-fg-subtle)] flex items-center gap-2">

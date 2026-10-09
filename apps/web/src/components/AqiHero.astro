@@ -66,8 +66,9 @@ const lastKnown = now ?? lastHour;
         <span class="v-us">{now.us !== null ? usLabel(now.us, lang) : d.insufficient} <span class="t-small font-normal opacity-80">· {d.scale.usNote}</span></span>
       </p>
       <p class="t-small mt-2 opacity-80 font-mono tabular">
-        {dom} · {stationsText} ·{' '}
-        <span class="v-n">{now.min}–{now.max}</span><span class="v-us">{usRange ? `${usRange[0]}–${usRange[1]}` : '–'}</span>
+        {dom} · {stationsText}
+        {/* A range needs stations; a modelled value is one grid cell, so "88–88" would say nothing. */}
+        {now.source !== 'cams' && <> · <span class="v-n">{now.min}–{now.max}</span><span class="v-us">{usRange ? `${usRange[0]}–${usRange[1]}` : '–'}</span></>}
       </p>
       {state === 'delayed' && <p class="t-small mt-2 font-medium">{d.hero.delayed(istTime(now.at))}</p>}
     </>

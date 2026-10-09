@@ -206,7 +206,8 @@ const nearby = nearbyCities(city.slug, 6);
         {cb && <DaysStrip lang={lang} days={cb.days} url={cb.bulletin?.url ?? 'https://cpcb.nic.in/aqi_report.php'} />}
       </div>
       {cb && cb.stations.length > 0 && <div class:list={[cb.stations.length > 8 || !live ? 'lg:col-span-12' : 'lg:col-span-7']}><StationsTable lang={lang} stations={cb.stations} /></div>}
-      {live && <div class:list={[cb && cb.stations.length > 8 ? 'lg:col-span-7' : 'lg:col-span-5']}><PollutantRows lang={lang} now={live} /></div>}
+      {/* Beside the 5-column source/30-day column when there is no station table, so the row fills all 12. */}
+      {live && <div class:list={[!cb?.stations.length || cb.stations.length > 8 ? 'lg:col-span-7' : 'lg:col-span-5']}><PollutantRows lang={lang} now={live} /></div>}
       <div class="lg:col-span-12"><AdSlot slot="city-1" /></div>
       {city.ncr && <div class="lg:col-span-7"><GrapSection lang={lang} /></div>}
       <div class="lg:col-span-12"><CityChips lang={lang} cities={nearby} bundle={bundle} /></div>

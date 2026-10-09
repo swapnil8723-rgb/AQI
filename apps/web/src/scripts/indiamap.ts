@@ -56,7 +56,11 @@ if (root) {
       const inside = x >= v.x && x <= v.x + v.w && y >= v.y && y <= v.y + v.h;
       el.style.visibility = inside ? '' : 'hidden';
       el.style.top = `${py}px`;
-      if (el.dataset.side === 'l') {
+      // Keep the preferred side unless the label would run off the map's edge (a 360 px phone clips "Ahmedabad").
+      const lw = el.offsetWidth;
+      const fitsL = px - off - lw >= 0;
+      const fitsR = px + off + lw <= w;
+      if (el.dataset.side === 'l' ? fitsL || !fitsR : !fitsR && fitsL) {
         el.style.left = '';
         el.style.right = `${w - px + off}px`;
       } else {

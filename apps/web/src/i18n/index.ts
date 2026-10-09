@@ -41,8 +41,8 @@ const en = {
     yesterday4pm: 'yesterday, 4 PM',
     on4pm: (d: string) => `${d}, 4 PM`,
     how: 'How is this calculated?',
-    delayed: (t: string) => `Data delayed from CPCB. Last update ${t}.`,
-    noData: 'No valid station data from CPCB right now.',
+    delayed: (t: string) => `Live estimate delayed. Last update ${t}.`,
+    noData: 'No live estimate right now.',
     lastKnown: (aqi: number, t: string) => `Last reading ${aqi} at ${t}.`,
     main: 'Main pollutant',
     range: 'Range across stations',
@@ -127,6 +127,7 @@ const en = {
   pollutants: {
     title: 'Pollutants',
     note: 'City average across valid stations. Concentrations are recovered from CPCB’s sub-indices (24-hour averages; 8-hour for CO and O₃).',
+    noteModelled: 'Modelled for the city (CAMS), not measured: 24-hour averages, 8-hour for CO and O₃, corrected to match CPCB’s recent bulletins.',
     subIndex: 'Sub-index',
   },
   map: {
@@ -174,7 +175,7 @@ const en = {
     title: 'How’s the air where you are?',
     lede: 'Live air quality for Indian cities from CPCB’s own monitoring stations — with the official number, our hourly estimate and every station side by side.',
     /** While CPCB's station feed is down (AGENTS.md rule 1). */
-    ledeModelled: 'Air quality for Indian cities: CPCB’s official daily number, and our hourly estimate in between — modelled while CPCB’s stations are offline, and labelled as such.',
+    ledeModelled: 'CPCB’s official daily AQI, plus our hourly modelled estimate in between, labelled as such.',
     yourCity: 'Your city',
     pick: 'Pick your city',
     details: 'See full details',
@@ -202,7 +203,7 @@ const en = {
     contact: 'Contact',
   },
   stale: {
-    banner: 'CPCB data is delayed. Numbers below are from the last successful update.',
+    banner: 'The live estimate is delayed. Numbers below are from the last successful update.',
   },
   dev: { fixture: (src: string) => `Dev preview · real CPCB data from ${src}, replayed as today` },
   notFound: { title: 'Page not found', body: 'That page doesn’t exist. Try a city:' },
@@ -233,8 +234,8 @@ const hi: Dict = {
     yesterday4pm: 'कल शाम 4 बजे',
     on4pm: (d) => `${d}, शाम 4 बजे`,
     how: 'यह कैसे निकाला गया?',
-    delayed: (t) => `CPCB से डेटा देर से आ रहा है। पिछला अपडेट ${t}।`,
-    noData: 'अभी CPCB से किसी स्टेशन का मान्य डेटा नहीं है।',
+    delayed: (t) => `लाइव अनुमान में देरी। पिछला अपडेट ${t}।`,
+    noData: 'अभी कोई लाइव अनुमान नहीं है।',
     lastKnown: (aqi, t) => `पिछली रीडिंग ${aqi}, ${t} बजे।`,
     main: 'मुख्य प्रदूषक',
     range: 'स्टेशनों में दायरा',
@@ -318,6 +319,7 @@ const hi: Dict = {
   pollutants: {
     title: 'प्रदूषक',
     note: 'मान्य स्टेशनों का शहर औसत। सांद्रता CPCB के सब-इंडेक्स से वापस निकाली गई है (24 घंटे का औसत; CO और O₃ के लिए 8 घंटे)।',
+    noteModelled: 'शहर के लिए मॉडल (CAMS) आधारित, मापा हुआ नहीं: 24 घंटे का औसत, CO और O₃ के लिए 8 घंटे, CPCB के हाल के बुलेटिन से मिलाकर सुधारा गया।',
     subIndex: 'सब-इंडेक्स',
   },
   map: {
@@ -362,7 +364,7 @@ const hi: Dict = {
   home: {
     title: 'आपके आसपास की हवा कैसी है?',
     lede: 'भारतीय शहरों की लाइव वायु गुणवत्ता, CPCB के अपने निगरानी स्टेशनों से — आधिकारिक नंबर, हमारा घंटेवार अनुमान और हर स्टेशन, एक साथ।',
-    ledeModelled: 'भारतीय शहरों की वायु गुणवत्ता: CPCB का आधिकारिक दैनिक नंबर, और बीच में हमारा घंटेवार अनुमान — CPCB स्टेशन बंद रहने तक मॉडल आधारित, और साफ़ लिखा हुआ।',
+    ledeModelled: 'CPCB का आधिकारिक दैनिक AQI, और बीच में हमारा घंटेवार मॉडल आधारित अनुमान — साफ़ लिखा हुआ।',
     yourCity: 'आपका शहर',
     pick: 'अपना शहर चुनें',
     details: 'पूरी जानकारी देखें',
@@ -390,7 +392,7 @@ const hi: Dict = {
     contact: 'संपर्क',
   },
   stale: {
-    banner: 'CPCB का डेटा देर से आ रहा है। नीचे के आँकड़े पिछले सफल अपडेट के हैं।',
+    banner: 'लाइव अनुमान में देरी है। नीचे के आँकड़े पिछले सफल अपडेट के हैं।',
   },
   dev: { fixture: (src) => `डेव प्रीव्यू · ${src} का असली CPCB डेटा, आज के रूप में` },
   notFound: { title: 'पेज नहीं मिला', body: 'यह पेज मौजूद नहीं है। कोई शहर चुनें:' },

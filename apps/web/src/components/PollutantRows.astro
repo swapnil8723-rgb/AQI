@@ -23,7 +23,7 @@ const fmt = (p: Pollutant, c: number) => (p === 'co' ? c.toFixed(2) : c >= 100 ?
   <h2 id="pollutants-title" class="t-h3">{d.pollutants.title}</h2>
   <ul class="mt-2">
     {rows.map((r) => (
-      <li class="grid grid-cols-[64px_1fr_auto] sm:grid-cols-[72px_1fr_120px_110px] items-center gap-x-4 min-h-14 hairline-b last:shadow-none" data-aqi={slotN(r.i)}>
+      <li class="grid grid-cols-[64px_1fr_auto] sm:grid-cols-[72px_1fr_120px_auto] items-center gap-x-4 min-h-14 hairline-b last:shadow-none" data-aqi={slotN(r.i)}>
         <span class="t-label">{POLLUTANT_LABEL[r.p]}</span>
         <span class="font-mono tabular">
           <span class="text-[20px] leading-none">{fmt(r.p, r.c)}</span>
@@ -32,9 +32,9 @@ const fmt = (p: Pollutant, c: number) => (p === 'co' ? c.toFixed(2) : c >= 100 ?
         <span class="hidden sm:block h-1.5 rounded-full bg-[var(--color-bg-muted)] overflow-hidden" title={`${d.pollutants.subIndex} ${r.i}`}>
           <span class="block h-full rounded-full" style={`width:${r.pos}%;background:var(--aqi-fill)`}></span>
         </span>
-        <span class="t-small font-medium text-right" style="color:var(--aqi-ink)">{catLabel(r.i, lang)} <span class="font-mono text-[var(--color-fg-subtle)] font-normal">· {r.i}</span></span>
+        <span class="t-small font-medium text-right whitespace-nowrap" style="color:var(--aqi-ink)">{catLabel(r.i, lang)} <span class="font-mono text-[var(--color-fg-subtle)] font-normal">· {r.i}</span></span>
       </li>
     ))}
   </ul>
-  <p class="t-small text-[var(--color-fg-subtle)] mt-3">{d.pollutants.note}</p>
+  <p class="t-small text-[var(--color-fg-subtle)] mt-3">{now.source === 'cams' ? d.pollutants.noteModelled : d.pollutants.note}</p>
 </section>

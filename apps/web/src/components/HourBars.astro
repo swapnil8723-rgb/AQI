@@ -90,7 +90,8 @@ const topPct = (v: number) => `${(y(v) / H) * 100}%`;
               })}
               <line x1="0" x2={W} y1={y(s.line)} y2={y(s.line)} stroke="var(--color-fg-subtle)" stroke-dasharray="3 3" vector-effect="non-scaling-stroke" stroke-width="1" />
             </svg>
-            <span class="absolute right-0 -translate-y-full font-mono text-[10px] text-[var(--color-fg-subtle)] pr-0.5" style={`top:${topPct(s.line)}`}>{s.line}</span>
+            {/* Left edge: "Now" sits over the newest bar at the right, so a right-hand label collides with it. */}
+            <span class="absolute left-0 -translate-y-full font-mono text-[10px] text-[var(--color-fg-subtle)] pl-0.5" style={`top:${topPct(s.line)}`}>{s.line}</span>
             <span class="absolute -translate-x-1/2 -translate-y-[calc(100%+4px)] font-mono text-[11px] whitespace-nowrap font-medium" style={`left:${pct(s.now.i)};top:${topPct(s.now.v)}`}>{d.hours.now} {s.now.v}</span>
             {s.peak.i !== s.now.i && (
               <span class="absolute -translate-x-1/2 -translate-y-[calc(100%+4px)] font-mono text-[11px] whitespace-nowrap text-[var(--color-fg-muted)]" style={`left:${pct(Math.min(Math.max(s.peak.i, 3), 20))};top:${topPct(s.peak.v)}`}>{d.hours.peak} {s.peak.v} · {istTime(s.peak.t)}</span>

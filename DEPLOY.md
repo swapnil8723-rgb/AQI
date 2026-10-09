@@ -182,6 +182,10 @@ $env:SITE_URL="https://your-domain.in"; npm run deploy
 
 ## 4. After launch (both options)
 
+- **Bing / IndexNow:** after a deploy that adds or renames pages, run
+  `SITE_URL=https://your-domain.in npm run indexnow`. It pings Bing (which also
+  feeds ChatGPT search, Copilot and DuckDuckGo) with every sitemap URL; the key
+  file is `apps/web/public/<key>.txt`. Google ignores IndexNow.
 - **Search Console:** add the domain → submit `https://your-domain.in/sitemap.xml`.
   - **On the temporary `*.workers.dev` / `*.vercel.app` address** a Domain
     property is impossible (no DNS to edit). Add a **URL prefix** property for
