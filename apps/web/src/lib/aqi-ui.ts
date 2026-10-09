@@ -74,3 +74,8 @@ export function freshness(iso: string | null | undefined, now = Date.now()): Fre
   if (m < 360) return 'delayed';
   return 'stale';
 }
+
+/** CPCB's bulletin names pollutants "PM2.5", "O3", "NO2"…; print them as the site does ("O₃"). */
+export function cpcbPollutants(list: readonly string[]): string {
+  return list.map((p) => p.replace(/^(O|NO|SO|NH)(\d)$/, (_, a: string, n: string) => a + String.fromCharCode(0x2080 + Number(n)))).join(', ');
+}

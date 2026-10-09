@@ -1,7 +1,7 @@
 ---
 import { POLLUTANT_LABEL, type Pollutant } from '@saans/aqi';
 import { t, localePath, type Lang } from '../i18n/index.ts';
-import { CATEGORY_LABEL, catLabel, freshness, slotN, slotU, usLabel } from '../lib/aqi-ui.ts';
+import { CATEGORY_LABEL, catLabel, cpcbPollutants, freshness, slotN, slotU, usLabel } from '../lib/aqi-ui.ts';
 import { istTime, shortDate, todayIst } from '../lib/format.ts';
 import type { BundleBulletin, CityNow, DayPoint, HourPoint } from '../lib/bundle.ts';
 import FreshnessBadge from './FreshnessBadge.astro';
@@ -84,7 +84,7 @@ const lastKnown = now ?? lastHour;
   {bulletin && (
     <p class="t-small font-medium">
       <a href={bulletin.url} class="hover:underline" rel="noopener" target="_blank">
-        {d.hero.official} ({bulletinWhen(bulletin.date)}): <span class="font-mono tabular">{bulletin.aqi}</span> · {catLabel(bulletin.aqi, lang)} <span aria-hidden="true">↗</span>
+        {d.hero.official} ({bulletinWhen(bulletin.date)}): <span class="font-mono tabular">{bulletin.aqi}</span> · {catLabel(bulletin.aqi, lang)}{bulletin.prominent.length > 0 && ` · ${cpcbPollutants(bulletin.prominent)}`} <span aria-hidden="true">↗</span>
       </a>
     </p>
   )}

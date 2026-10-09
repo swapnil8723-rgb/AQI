@@ -23,7 +23,7 @@ import AdSlot from '../components/AdSlot.astro';
 import Faq from '../components/Faq.astro';
 import NearestChip from '../components/NearestChip.astro';
 import { t, localePath, type Lang } from '../i18n/index.ts';
-import { CATEGORY_LABEL, catLabel, freshness, slotN, slotU, usLabel } from '../lib/aqi-ui.ts';
+import { CATEGORY_LABEL, catLabel, cpcbPollutants, freshness, slotN, slotU, usLabel } from '../lib/aqi-ui.ts';
 import { istTime, longDate, shortDate, todayIst } from '../lib/format.ts';
 import { istDate } from '@saans/pipeline';
 import { SITE } from '../lib/site.ts';
@@ -65,11 +65,15 @@ const title = live
     ? `${name} AQI आज · लाइव वायु गुणवत्ता | ${SITE.nameHi}`
     : `${name} AQI Today · Live Air Quality | ${SITE.name}`;
 const bul = cb?.bulletin;
-// A modelled estimate has no stations behind it, so the snippet claims none.
+const bulProm = bul?.prominent.length ? cpcbPollutants(bul.prominent) : '';
+// A modelled estimate has no stations behind it, so the snippet claims none. Nor
+// does it name the model's main pollutant: CAMS's ozone tops its sub-indices on
+// ~9 in 10 city-days while CPCB names ozone on ~1 in 20, so the snippet gives
+// CPCB's own prominent pollutant instead.
 const description = live?.source === 'cams'
   ? lang === 'hi'
-    ? `${name} की वायु गुणवत्ता: मॉडल आधारित लाइव अनुमान AQI ${live.aqi} (${catWord}), मुख्य प्रदूषक ${dom(live.dominant)}।${bul ? ` आधिकारिक CPCB बुलेटिन: ${bul.aqi}।` : ''} हर घंटे अपडेट।`
-    : `Air quality in ${name}: modelled live estimate AQI ${live.aqi} (${catWord}), ${dom(live.dominant)} main pollutant.${bul ? ` Official CPCB bulletin: ${bul.aqi}.` : ''} Updated hourly.`
+    ? `${name} की वायु गुणवत्ता: मॉडल आधारित लाइव अनुमान AQI ${live.aqi} (${catWord})।${bul ? ` आधिकारिक CPCB बुलेटिन: ${bul.aqi} (${catLabel(bul.aqi, lang)})${bulProm ? `, मुख्य प्रदूषक ${bulProm}` : ''}।` : ''} हर घंटे अपडेट।`
+    : `Air quality in ${name}: modelled live estimate AQI ${live.aqi} (${catWord}).${bul ? ` Official CPCB bulletin: ${bul.aqi} (${catLabel(bul.aqi, lang)})${bulProm ? `, ${bulProm} prominent` : ''}.` : ''} Updated hourly.`
   : live
   ? lang === 'hi'
     ? `${name} की लाइव वायु गुणवत्ता: AQI ${live.aqi} (${catWord}), मुख्य प्रदूषक ${dom(live.dominant)}, ${live.valid} CPCB स्टेशन, दायरा ${live.min}–${live.max}.${bul ? ` आधिकारिक CPCB बुलेटिन: ${bul.aqi}.` : ''} हर घंटे अपडेट।`
@@ -104,7 +108,14 @@ if (live) {
   }
   const p0 = live.dominant[0];
   const pc = p0 ? live.pollutants[p0] : undefined;
-  if (p0 && pc) {
+  if (live.source === 'cams' && bul && bulProm) {
+    // The official answer first; the model's top pollutant often differs (ozone, see the description above).
+    faq.push(
+      lang === 'hi'
+        ? { q: `${name} में आज मुख्य प्रदूषक कौन-सा है?`, a: `${longDate(bul.date, lang)} के आधिकारिक CPCB बुलेटिन के अनुसार ${bulProm}।${p0 && pc ? ` हमारे मॉडल में अभी ${POLLUTANT_LABEL[p0]} का सब-इंडेक्स सबसे ऊँचा (${pc.i}) है — यह अनुमान है, माप नहीं।` : ''}` }
+        : { q: `What is the main pollutant in ${name} today?`, a: `${bulProm}, according to CPCB's official bulletin for ${longDate(bul.date, lang)}.${p0 && pc ? ` In our model, ${POLLUTANT_LABEL[p0]} has the highest sub-index right now (${pc.i}) — an estimate, not a measurement.` : ''}` },
+    );
+  } else if (p0 && pc) {
     faq.push(
       lang === 'hi'
         ? { q: `${name} में आज मुख्य प्रदूषक कौन-सा है?`, a: `${POLLUTANT_LABEL[p0]} — ${live.source === 'cams' ? `मॉडल में ${name} का` : `${name} के स्टेशनों में इसका औसत`} सब-इंडेक्स सबसे ऊँचा (${pc.i}) है, यानी लगभग ${pc.c} ${p0 === 'co' ? 'mg/m³' : 'µg/m³'}।` }

@@ -27,6 +27,7 @@
     "smoke": "node scripts/smoke.ts",
     "backfill": "node scripts/backfill-bulletins.ts",
     "calibrate": "node scripts/calibrate.ts",
+    "evaluate": "node scripts/evaluate.ts",
     "indexnow": "node scripts/indexnow.ts",
     "seed": "npm run seed -w @saans/web",
     "dev:fresh": "npm run fixture:cams && npm run seed && npm run dev"
