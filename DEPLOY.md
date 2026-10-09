@@ -35,6 +35,17 @@ Setup:
    - *Variables*: `INGEST_URL` = `https://aqi.swapnil-8723.workers.dev`
 3. GitHub → **Actions → ingest → Run workflow** (job `auto`) to start now; then it runs every hour.
 4. Check `https://aqi.swapnil-8723.workers.dev/health` → `"healthy": true`.
+5. **Watchdog (recommended).** GitHub's `schedule:` is best-effort — on 8–9 Oct
+   2026 only 4 of 24 hourly runs fired. The Worker's one cron (`50 * * * *`)
+   re-dispatches the workflow when no good run landed in the last 40 minutes,
+   so a run that did fire costs nothing extra (`workers/ingest/src/watchdog.ts`).
+   - GitHub → Settings → Developer settings → **Fine-grained tokens** → new
+     token, repository access **only AQI**, permission **Actions: Read and write**.
+   - `cd workers/ingest && npx wrangler secret put GITHUB_DISPATCH_TOKEN` (paste it),
+     then `npx wrangler deploy`.
+   - Without the secret the cron only logs. Each run also fills any hour of the
+     last day a skipped run left empty, and catches up a missed bulletin or
+     archive, so a gap heals on the next run either way.
 
 Private repos get 2,000 free Actions minutes a month; this uses about 1,000.
 **Moving to Workers Paid later:** restore the crons in `workers/ingest/wrangler.jsonc`

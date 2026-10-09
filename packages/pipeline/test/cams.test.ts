@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  camsAt,
   camsCalibration,
   camsCityNow,
   camsFactor,
@@ -74,6 +75,25 @@ describe('parseCams', () => {
 
   it('accepts a single-site response that is not an array', () => {
     expect(parseCams([DELHI], block(48, FULL), NOW)).toHaveLength(1);
+  });
+});
+
+describe('camsAt', () => {
+  it('scores one download at a past hour, so a skipped run can be filled', () => {
+    // A ramp: each hour's PM2.5 is its index, so the 24-h mean moves with the end.
+    const b = block(48, FULL);
+    (b.hourly as Record<string, unknown>)['pm2_5'] = (b.hourly.time as string[]).map((_, i) => i);
+    const res = [{ sites: [DELHI], body: [b] }];
+    const now = camsAt(res, NOW)[0]!;
+    const earlier = camsAt(res, NOW - 5 * 3600_000)[0]!;
+    expect(now.at).toBe('2026-09-30T08:00:00.000Z');
+    expect(earlier.at).toBe('2026-09-30T03:00:00.000Z');
+    expect(now.conc.pm25! - earlier.conc.pm25!).toBeCloseTo(5, 6);
+  });
+
+  it('returns nothing usable before the series has a full window', () => {
+    const [c] = camsAt([{ sites: [DELHI], body: [block(30, FULL)] }], NOW - 20 * 3600_000);
+    expect(c!.conc.pm25).toBeUndefined();
   });
 });
 

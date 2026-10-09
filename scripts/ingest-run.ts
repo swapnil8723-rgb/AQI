@@ -25,9 +25,10 @@ import {
   buildReplay,
   bulletinCityKey,
   bulletinUrl,
+  camsAt,
   camsCityNow,
   coordLookup,
-  fetchCams,
+  fetchCamsResponses,
   istAt,
   istDate,
   istHour,
@@ -101,13 +102,14 @@ async function record(job: 'hourly' | 'bulletin' | 'archive', s: JobStatus) {
   await kv('ingest:status', JSON.stringify(status)).catch((e) => console.error('status write failed', e));
 }
 
-async function timed<T>(job: 'hourly' | 'bulletin' | 'archive', fn: () => Promise<T>): Promise<T> {
+/** Runs a job and records it in /health; `quiet` results are not news and leave the last record. */
+async function timed<T>(job: 'hourly' | 'bulletin' | 'archive', fn: () => Promise<T>, quiet?: (r: T) => boolean): Promise<T> {
   const t0 = Date.now();
   const at = new Date(t0).toISOString();
   try {
     const r = await fn();
     const o = (r ?? {}) as { rows?: number; stations?: number };
-    await record(job, { at, ok: true, ms: Date.now() - t0, message: JSON.stringify(r).slice(0, 400), rows: o.rows, stations: o.stations });
+    if (!quiet?.(r)) await record(job, { at, ok: true, ms: Date.now() - t0, message: JSON.stringify(r).slice(0, 400), rows: o.rows, stations: o.stations });
     console.log(`${job}: ok in ${Date.now() - t0} ms`, JSON.stringify(r));
     return r;
   } catch (e) {
@@ -144,7 +146,8 @@ const MIN_CITIES = 20;
 async function hourly() {
   const now = new Date();
   const sites = camsSites();
-  const cams = await fetchCams(sites, { userAgent: UA, now: now.getTime() });
+  const responses = await fetchCamsResponses(sites, { userAgent: UA });
+  const cams = camsAt(responses, now.getTime());
 
   // Raw first: exactly what the model said, before any parsing can fail.
   const p = istParts(now);
@@ -164,9 +167,6 @@ async function hourly() {
   const cityNow: Record<string, CityNow | null> = {};
   for (const c of cams) if (c.slug) cityNow[c.slug] = camsCityNow(c, calibration);
 
-  const cityRows = CITIES.map((c) => ({ c, n: cityNow[c.slug] })).filter((x) => x.n);
-  await d1('city_hour', cityRows.map(({ c, n }) => ({ slug: c.slug, hour, aqi: n!.aqi, min: n!.min, max: n!.max, valid: n!.valid, total: n!.total, dominant: n!.dominant.join(','), us: n!.us })));
-
   const today = istDate(now);
   const lastYearDate = `${Number(today.slice(0, 4)) - 1}${today.slice(4)}`;
   const [hoursRaw, bulls, lyRaw, acc] = await Promise.all([
@@ -175,8 +175,35 @@ async function hourly() {
     read<{ s: string; d: string; aqi: number }[]>('bulletins', lastYearDate, lastYearDate),
     read<Accuracy & { n: number }>('accuracy'),
   ]);
+
+  // This hour, plus every hour of the last day that no run stored. GitHub's
+  // scheduler skips many hourly runs, and each skipped hour used to stay a
+  // gap in the 24-hour chart. The response already holds two days of model
+  // hours, so a missed hour is scored exactly as its own run would have
+  // scored it. Stored hours are never rewritten.
+  const stored = new Set(hoursRaw.map((r) => `${r.s}@${r.t}`));
+  const toRow = (slug: string, slot: string, n: CityNow) => ({ slug, hour: slot, aqi: n.aqi, min: n.min, max: n.max, valid: n.valid, total: n.total, dominant: n.dominant.join(','), us: n.us });
+  const cityRows = CITIES.filter((c) => cityNow[c.slug]).map((c) => toRow(c.slug, hour, cityNow[c.slug]!));
+  let filled = 0;
+  for (let k = 1; k < 24; k++) {
+    const slot = new Date(Date.parse(hour) - k * H).toISOString();
+    if (CITIES.every((c) => stored.has(`${c.slug}@${slot}`))) continue;
+    // An IST hour starts at :30 UTC; the model hour inside it is 30 min later.
+    for (const c of camsAt(responses, Date.parse(slot) + H / 2)) {
+      if (!c.slug || stored.has(`${c.slug}@${slot}`) || istHour(c.at) !== slot) continue;
+      const n = camsCityNow(c, calibration);
+      if (!n) continue;
+      cityRows.push(toRow(c.slug, slot, n));
+      filled++;
+    }
+  }
+  await d1('city_hour', cityRows);
+
+  const byKey = new Map<string, { s: string; t: string; aqi: number; u: number | null; n: number }>();
+  for (const r of hoursRaw) byKey.set(`${r.s}@${r.t}`, r);
+  for (const r of cityRows) byKey.set(`${r.slug}@${r.hour}`, { s: r.slug, t: r.hour, aqi: r.aqi, u: r.us, n: r.valid });
   const hours: Record<string, HourPoint[]> = {};
-  for (const r of hoursRaw) (hours[r.s] ??= []).push({ t: r.t, aqi: r.aqi, u: r.u, n: r.n });
+  for (const r of [...byKey.values()].sort((a, b) => a.t.localeCompare(b.t))) (hours[r.s] ??= []).push({ t: r.t, aqi: r.aqi, u: r.u, n: r.n });
   const days: Record<string, DayPoint[]> = {};
   const bulletins: Record<string, BundleBulletin> = {};
   for (const r of bulls) {
@@ -190,7 +217,8 @@ async function hourly() {
   return {
     source: 'cams',
     cities: cams.length,
-    rows: cityRows.length,
+    rows: cityRows.length - filled,
+    filled,
     calibrated: Object.keys(calibration).length,
     feedAt,
     raw: rawKey,
@@ -287,14 +315,33 @@ const attempt = async (name: string, fn: () => Promise<unknown>) => {
   }
 };
 
-// The 4 PM bulletin appears around 17:00 IST; keep trying until 21:00. It runs
-// before the hourly job so that job's bundle already carries today's bulletin.
-if (job === 'bulletin' || (job === 'auto' && istHourNow >= 17 && istHourNow <= 21)) {
-  await attempt('bulletin', () => timed('bulletin', () => bulletin(dateArg ?? today, job === 'auto' && istHourNow >= 21)));
+// The 4 PM bulletin appears around 17:00 IST. It runs before the hourly job so
+// that job's bundle already carries it. Scheduled runs are unreliable, so an
+// automatic run never assumes the previous one happened: from 17:00 it tries
+// today's bulletin (an error from 21:00 if CPCB still has not published), and
+// before 17:00 it picks up yesterday's if no evening run stored it. Each try
+// costs one read once the bulletin is stored.
+if (job === 'bulletin') {
+  await attempt('bulletin', () => timed('bulletin', () => bulletin(dateArg ?? today, false)));
+} else if (job === 'auto') {
+  const evening = istHourNow >= 17;
+  const date = evening ? today : addDays(today, -1);
+  await attempt('bulletin', () => timed('bulletin', () => bulletin(date, evening && istHourNow >= 21), (r) => r.status === 'already-stored'));
 }
 if (job === 'hourly' || job === 'auto') await attempt('hourly', () => timed('hourly', () => hourly()));
-// Just after midnight IST: yesterday's archive.
-if (job === 'archive' || (job === 'auto' && istHourNow === 0)) {
+// Yesterday's archive, on the first automatic run of the IST day that finds it missing.
+if (job === 'archive') {
   await attempt('archive', () => timed('archive', () => archive(dateArg ?? addDays(today, -1))));
+} else if (job === 'auto') {
+  const yesterday = addDays(today, -1);
+  const status = await kvGet<Status>('ingest:status');
+  const last = (() => {
+    try {
+      return (JSON.parse(status?.archive?.message ?? '{}') as { date?: string }).date ?? '';
+    } catch {
+      return '';
+    }
+  })();
+  if (last < yesterday) await attempt('archive', () => timed('archive', () => archive(yesterday)));
 }
 process.exit(failed ? 1 : 0);

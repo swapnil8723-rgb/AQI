@@ -20,6 +20,7 @@ import { bulletinJob } from './bulletin.ts';
 import { BUNDLE_KEY, REPLAY_KEY, type Env } from './env.ts';
 import { hourly } from './hourly.ts';
 import { store } from './store.ts';
+import { watchdog } from './watchdog.ts';
 
 async function run(env: Env, job: Job, fn: () => Promise<unknown>): Promise<unknown> {
   const started = Date.now();
@@ -70,6 +71,10 @@ export default {
       case '0 19 * * *':
         // 19:00 UTC is 00:30 IST: dump the IST day that just ended.
         await run(env, 'archive', () => archiveDay(env, addDays(istDate(now), -1)));
+        break;
+      case '50 * * * *':
+        // Free plan: re-dispatch the GitHub workflow when its schedule skipped an hour.
+        await watchdog(env, now);
         break;
       default:
         console.warn('unknown cron', controller.cron);

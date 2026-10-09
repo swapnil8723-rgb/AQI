@@ -7,6 +7,10 @@ export interface Env {
   TELEGRAM_BOT_TOKEN?: string;
   TELEGRAM_CHAT_ID?: string;
   CONTACT_EMAIL?: string;
+  /** Free plan: lets the watchdog cron dispatch the GitHub ingest workflow (secret; watchdog.ts). */
+  GITHUB_DISPATCH_TOKEN?: string;
+  /** "owner/repo" holding .github/workflows/ingest.yml (var). */
+  GITHUB_REPO?: string;
 }
 
 /** KV key the website reads. Bump the version when the Bundle shape changes. */

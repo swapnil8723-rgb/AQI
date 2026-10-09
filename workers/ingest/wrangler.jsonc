@@ -19,12 +19,15 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
-  // Workers Free: no cron triggers here. GitHub Actions (.github/workflows/ingest.yml)
-  // runs the hourly work and stores it through this Worker's /store endpoints.
+  // Workers Free: GitHub Actions (.github/workflows/ingest.yml) runs the hourly
+  // work and stores it through this Worker's /store endpoints. The one cron here
+  // is the watchdog (src/watchdog.ts): GitHub's schedule skips hours, so at :50
+  // the Worker re-dispatches the workflow if no run landed this hour. It needs
+  // the GITHUB_DISPATCH_TOKEN secret; without it, it only logs.
   // On Workers Paid, switch the jobs back into the Worker by restoring:
   //   "triggers": { "crons": ["20 * * * *", "45 11-15 * * *", "0 19 * * *"] }
   // and disabling the GitHub workflow.
-  "triggers": { "crons": [] },
+  "triggers": { "crons": ["50 * * * *"] },
   "d1_databases": [
     {
       "binding": "DB",
@@ -37,7 +40,9 @@
   "r2_buckets": [{ "binding": "ARCHIVE", "bucket_name": "saans-archive" }],
   "vars": {
     // Sent in the User-Agent to data.gov.in and CPCB so they can reach us.
-    "CONTACT_EMAIL": "support@risescribe.com"
+    "CONTACT_EMAIL": "support@risescribe.com",
+    // The repo whose ingest workflow the watchdog dispatches.
+    "GITHUB_REPO": "swapnil8723-rgb/AQI"
   },
   "observability": { "enabled": true }
 }

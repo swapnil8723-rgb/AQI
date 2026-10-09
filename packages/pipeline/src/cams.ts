@@ -161,20 +161,41 @@ export interface FetchCamsOptions {
   chunk?: number;
 }
 
-/** Fetch every site's window means. */
-export async function fetchCams(sites: readonly CamsSite[], opts: FetchCamsOptions = {}): Promise<CamsCity[]> {
+/** One Open-Meteo response and the sites it answers, unparsed. */
+export interface CamsResponse {
+  sites: readonly CamsSite[];
+  body: unknown;
+}
+
+/**
+ * Fetch the model's hourly series for every site without scoring it. A
+ * response covers `pastDays` of hours, so one download can be scored at any
+ * past hour with {@link camsAt} — the hourly job uses that to fill hours a
+ * skipped run left empty.
+ */
+export async function fetchCamsResponses(sites: readonly CamsSite[], opts: FetchCamsOptions = {}): Promise<CamsResponse[]> {
   const f = opts.fetchImpl ?? fetch;
   const size = opts.chunk ?? 150;
-  const out: CamsCity[] = [];
+  const out: CamsResponse[] = [];
   for (let i = 0; i < sites.length; i += size) {
     const batch = sites.slice(i, i + size);
     const res = await f(camsUrl(batch, opts.pastDays), {
       headers: { accept: 'application/json', 'user-agent': opts.userAgent ?? 'saans-ingest' },
     });
     if (!res.ok) throw new Error(`cams: HTTP ${res.status} for ${batch.length} sites at ${i}`);
-    out.push(...parseCams(batch, await res.json(), opts.now ?? Date.now()));
+    out.push({ sites: batch, body: await res.json() });
   }
   return out;
+}
+
+/** Every site's window means ending at the newest model hour at or before `atMs`. */
+export function camsAt(responses: readonly CamsResponse[], atMs: number): CamsCity[] {
+  return responses.flatMap((r) => parseCams(r.sites, r.body, atMs));
+}
+
+/** Fetch every site's window means. */
+export async function fetchCams(sites: readonly CamsSite[], opts: FetchCamsOptions = {}): Promise<CamsCity[]> {
+  return camsAt(await fetchCamsResponses(sites, opts), opts.now ?? Date.now());
 }
 
 function round(x: number, d: number): number {
