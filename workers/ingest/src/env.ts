@@ -9,8 +9,10 @@ export interface Env {
   CONTACT_EMAIL?: string;
   /** Free plan: lets the watchdog cron dispatch the GitHub ingest workflow (secret; watchdog.ts). */
   GITHUB_DISPATCH_TOKEN?: string;
-  /** "owner/repo" holding .github/workflows/ingest.yml (var). */
+  /** "owner/repo" holding the ingest workflow (var). */
   GITHUB_REPO?: string;
+  /** The workflow file to dispatch (var); default ingest.yml. */
+  GITHUB_WORKFLOW?: string;
 }
 
 /** KV key the website reads. Bump the version when the Bundle shape changes. */
@@ -20,6 +22,8 @@ export const STATUS_KEY = 'ingest:status';
 export const CALIBRATION_KEY = 'cams:calibration';
 /** 30 days of CPCB's official daily AQI for every city (the home map replay). */
 export const REPLAY_KEY = 'replay:30d';
+/** The world estimate: every covered city outside India, 24 h back and 48 h ahead (scripts/ingest-run.ts global). */
+export const GLOBAL_KEY = 'global:v1';
 
 export function userAgent(env: Env): string {
   return `SaansAQI/1.0 (air-quality archive; contact ${env.CONTACT_EMAIL ?? 'unknown'})`;

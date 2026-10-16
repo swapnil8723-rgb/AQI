@@ -6,7 +6,8 @@
 # gateway (workers/ingest/src/store.ts).
 #
 # Each run: the hourly estimate; from 17:00 to 21:00 IST also the 4 PM
-# bulletin; just after midnight IST also yesterday's archive. Once a day the
+# bulletin; just after midnight IST also yesterday's archive; every ~6 hours
+# the world estimate (packages/pipeline/src/global.ts). Once a day the
 # model is recalibrated against recent bulletins. GitHub emails you if a run fails.
 #
 # The hourly estimate comes from CAMS and needs no API key — CPCB's own feed
@@ -28,7 +29,7 @@ on:
   workflow_dispatch:
     inputs:
       job:
-        description: 'auto | hourly | bulletin | archive | calibrate'
+        description: 'auto | hourly | bulletin | archive | global | calibrate'
         default: 'auto'
       date:
         description: 'YYYY-MM-DD (bulletin / archive; blank = today / yesterday)'

@@ -25,7 +25,8 @@ export async function watchdog(env: Env, now = Date.now()): Promise<string> {
     console.warn('watchdog: last good run is stale, but GITHUB_DISPATCH_TOKEN / GITHUB_REPO are not set');
     return 'no-token';
   }
-  const res = await fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/actions/workflows/ingest.yml/dispatches`, {
+  const workflow = env.GITHUB_WORKFLOW || 'ingest.yml';
+  const res = await fetch(`https://api.github.com/repos/${env.GITHUB_REPO}/actions/workflows/${workflow}/dispatches`, {
     method: 'POST',
     headers: {
       authorization: `Bearer ${env.GITHUB_DISPATCH_TOKEN}`,

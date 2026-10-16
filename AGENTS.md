@@ -1,7 +1,10 @@
 # AGENTS.md
 
-Rules for any coding agent working in this repo. PLAN.md is the product plan,
-DESIGN.md decides every UI question, README.md has commands and deploy steps.
+Rules for any coding agent working on air quality. Since 16 Oct 2026 this folder
+is part of the GlobalMetrics repo: the website is `../site` (pages under
+`site/src/pages/aqi`, `site/src/views/Aqi*`, `site/src/components/aqi`), and
+`apps/web` is the retired Saans site, kept only until its old address redirects.
+PLAN.md is the original product plan; README.md has commands and deploy steps.
 
 1. **Never invent data, and never blur where a number came from.** Every
    number is either a CPCB measurement or a labelled model value:
@@ -21,9 +24,12 @@ DESIGN.md decides every UI question, README.md has commands and deploy steps.
 2. **"Official" means CPCB's bulletin value only.** Our number is always
    "Live estimate" / "लाइव अनुमान", and while it is modelled it also carries
    "Modelled — CPCB stations offline". `npm run smoke` checks this.
-3. **Follow DESIGN.md exactly.** No new colours, fonts, radii or shadows; the
-   AQI category is the only colour. No gradients, no emoji, no red outside
-   Very Poor air. Never negative letter-spacing on Hindi.
+3. **The site's design system rules** (`site/src/styles/global.css`). The AQI
+   category is the only colour an AQI element carries: CPCB's colours for India
+   (`data-aqi="n-*"`), the US EPA's for the world (`u-*`); one scale per page,
+   never mixed. No gradients, no emoji. Never negative letter-spacing on Hindi.
+   Outside India the number is the US EPA AQI computed from CAMS
+   (`packages/pipeline/src/global.ts`): modelled, uncorrected, and labelled so.
 4. **Zero JS above the fold.** Scripts only enhance. Every map dot is a link;
    the calculator and search work without JS.
 5. **Keep CPCB's arithmetic, whatever the source feeds it.** Sub-index per
@@ -40,9 +46,9 @@ DESIGN.md decides every UI question, README.md has commands and deploy steps.
    within 50%**, with at least one city clamped at the 0.2 floor. Publish that
    band; never restore the old accuracy claim while the number is modelled,
    and re-measure rather than quoting these figures if the method changes.
-6. **Before you finish:** `npm test`, `npm run check`, and `npm run smoke`
-   against a running dev server. Check 360 px and 1440 px, light and dark,
-   EN and HI.
+6. **Before you finish:** `npm test` and `npm run typecheck` here; in `../site`
+   `npx astro check` and `npm run build` (postbuild fails on broken links).
+   Check 360 px and 1440 px, light and dark, EN and HI.
 7. Browser scripts in `apps/web/src/scripts` must be ES modules (`export {}`)
    and must not use `@cloudflare/workers-types` (it overrides DOM types).
 8. Windows: Vite's dependency scanner misreads `<script` inside comments and a

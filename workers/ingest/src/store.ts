@@ -9,7 +9,7 @@
  * Only fixed statements run — no SQL arrives over HTTP.
  *
  *   POST /store/d1/{stations|station_hour|city_hour|bulletin}   body: JSON array
- *   PUT  /store/kv/{bundle:v1|replay:30d|ingest:status|cams:calibration}   body: the value
+ *   PUT  /store/kv/{bundle:v1|replay:30d|ingest:status|cams:calibration|global:v1}   body: the value
  *   GET  /store/kv/{ingest:status|cams:calibration}               the run status; the model correction
  *   PUT  /store/r2/{key}                                          body: the object
  *   GET  /read/{name}?a=&b=                                       one JSON document
@@ -62,7 +62,7 @@ const READS: Record<string, string> = {
       'prominent', prominent, 'used', used, 'total', total, 'ours', ours)), '[]') AS j FROM bulletin WHERE date = ?1 AND ?2 = ?2`,
 };
 
-const KV_KEYS = new Set(['bundle:v1', 'replay:30d', 'ingest:status', 'cams:calibration']);
+const KV_KEYS = new Set(['bundle:v1', 'replay:30d', 'ingest:status', 'cams:calibration', 'global:v1']);
 /** Readable too: the hourly job needs the status and the correction it applies. */
 const KV_READ = new Set(['ingest:status', 'cams:calibration']);
 
@@ -86,7 +86,8 @@ export async function store(req: Request, env: Env, url: URL): Promise<Response 
   if (area === 'store' && kind === 'kv' && req.method === 'PUT') {
     const key = decodeURIComponent(rest.join('/'));
     if (!KV_KEYS.has(key)) return out('{"error":"unknown key"}', 404);
-    await env.KV.put(key, await req.text());
+    // Bytes, not text: the world bundle is ~1.3 MB and decoding it would spend the Free plan's CPU.
+    await env.KV.put(key, await req.arrayBuffer());
     return out('{"ok":true}');
   }
   if (area === 'store' && kind === 'r2' && req.method === 'PUT') {

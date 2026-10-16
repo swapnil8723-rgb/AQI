@@ -1,4 +1,11 @@
-# Saans — India's transparent air-quality site
+# Air quality (part of GlobalMetrics)
+
+> Merged into the GlobalMetrics repo on 16 Oct 2026. The website is now `../site`
+> (`/aqi/` pages); `apps/web` is the retired Saans site. New here: a world estimate for
+> 570 cities (`packages/pipeline/src/global.ts`, `packages/data/src/world.ts`), stored
+> as `global:v1` and served at `/v1/global.json`.
+
+## Saans — India's transparent air-quality site (original notes)
 
 AQI for Indian cities, with the sources kept apart on every city page:
 **CPCB's official 4 PM bulletin** and **our hourly live estimate**. English at

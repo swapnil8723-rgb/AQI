@@ -8,6 +8,7 @@
  *   node scripts/ingest-run.ts hourly
  *   node scripts/ingest-run.ts bulletin [YYYY-MM-DD]
  *   node scripts/ingest-run.ts archive  [YYYY-MM-DD]
+ *   node scripts/ingest-run.ts global              the world estimate (auto runs it when the last one is ~6 h old)
  *
  * The hourly estimate comes from CAMS (packages/pipeline/src/cams.ts) since
  * CPCB's machine-readable feed went down in Sep 2026; it needs no API key.
@@ -27,8 +28,11 @@ import {
   bulletinUrl,
   camsAt,
   camsCityNow,
+  buildGlobal,
   coordLookup,
   fetchCamsResponses,
+  fetchGlobalResponses,
+  GLOBAL_KEY,
   istAt,
   istDate,
   istHour,
@@ -83,9 +87,10 @@ const r2 = (key: string, bytes: Uint8Array, type: string, encoding?: string) =>
   call('PUT', `/store/r2/${key}`, bytes, { 'content-type': type, ...(encoding ? { 'x-content-encoding': encoding } : {}) });
 
 interface JobStatus { at: string; ok: boolean; ms: number; message: string; rows?: number; stations?: number }
-interface Status { hourly?: JobStatus; bulletin?: JobStatus; archive?: JobStatus; failures: number; lastGood?: string }
+type JobName = 'hourly' | 'bulletin' | 'archive' | 'global';
+interface Status { hourly?: JobStatus; bulletin?: JobStatus; archive?: JobStatus; global?: JobStatus; failures: number; lastGood?: string }
 
-async function record(job: 'hourly' | 'bulletin' | 'archive', s: JobStatus) {
+async function record(job: JobName, s: JobStatus) {
   let status: Status = { failures: 0 };
   try {
     status = (JSON.parse(await call('GET', '/store/kv/ingest:status')) as Status | null) ?? status;
@@ -103,7 +108,7 @@ async function record(job: 'hourly' | 'bulletin' | 'archive', s: JobStatus) {
 }
 
 /** Runs a job and records it in /health; `quiet` results are not news and leave the last record. */
-async function timed<T>(job: 'hourly' | 'bulletin' | 'archive', fn: () => Promise<T>, quiet?: (r: T) => boolean): Promise<T> {
+async function timed<T>(job: JobName, fn: () => Promise<T>, quiet?: (r: T) => boolean): Promise<T> {
   const t0 = Date.now();
   const at = new Date(t0).toISOString();
   try {
@@ -297,6 +302,20 @@ async function archive(date: string) {
   return { date, stationRows: rows.length, bulletinRows: brows.length };
 }
 
+// ─── The world estimate (packages/pipeline/src/global.ts) ────────────────
+/** CAMS issues two runs a day; four refreshes never miss one and stay inside Open-Meteo's free tier. */
+const GLOBAL_EVERY_MS = 5.5 * H;
+
+async function global() {
+  const responses = await fetchGlobalResponses(undefined, { userAgent: UA });
+  const bundle = buildGlobal(responses);
+  const cities = Object.keys(bundle.cities).length;
+  if (cities < 100) throw new Error(`global: only ${cities} cities scored; keeping the previous bundle`);
+  const body = JSON.stringify(bundle);
+  await kv(GLOBAL_KEY, body);
+  return { cities, t0: bundle.t0, kb: Math.round(body.length / 1024) };
+}
+
 // ─── Entry ──────────────────────────────────────────────────────────────
 const args = process.argv.slice(2).filter(Boolean);
 const job = args[0] ?? 'auto';
@@ -329,6 +348,17 @@ if (job === 'bulletin') {
   await attempt('bulletin', () => timed('bulletin', () => bulletin(date, evening && istHourNow >= 21), (r) => r.status === 'already-stored'));
 }
 if (job === 'hourly' || job === 'auto') await attempt('hourly', () => timed('hourly', () => hourly()));
+if (job === 'global') {
+  await attempt('global', () => timed('global', () => global()));
+} else if (job === 'auto') {
+  const status = await kvGet<Status>('ingest:status');
+  const last = status?.global?.ok ? Date.parse(status.global.at) : 0;
+  // A failed world refresh must not fail India's hourly run: the world bundle covers
+  // 48 hours ahead, so the next run catches up. It shows in /health and as a warning.
+  if (nowMs - last > GLOBAL_EVERY_MS) {
+    await timed('global', () => global()).catch((e) => console.warn(`::warning::global failed: ${e instanceof Error ? e.message : String(e)}`));
+  }
+}
 // Yesterday's archive, on the first automatic run of the IST day that finds it missing.
 if (job === 'archive') {
   await attempt('archive', () => timed('archive', () => archive(dateArg ?? addDays(today, -1))));
