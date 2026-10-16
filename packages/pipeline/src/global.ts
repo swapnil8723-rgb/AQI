@@ -163,6 +163,8 @@ export interface FetchGlobalOptions {
   chunk?: number;
   /** Pause between requests: Open-Meteo's free tier allows 600 calls a minute, one per coordinate. */
   pauseMs?: number;
+  /** Base backoff between retries (tests set 0). */
+  retryMs?: number;
 }
 
 export async function fetchGlobalResponses(sites: readonly WorldCity[] = WORLD_CITIES, opts: FetchGlobalOptions = {}): Promise<GlobalResponse[]> {
@@ -173,14 +175,28 @@ export async function fetchGlobalResponses(sites: readonly WorldCity[] = WORLD_C
   for (let i = 0; i < sites.length; i += size) {
     if (i > 0 && pause > 0) await new Promise((r) => setTimeout(r, pause));
     const batch = sites.slice(i, i + size);
+    // Retry rate limits, server errors and network failures (a kept-alive socket the
+    // server closed during the pause shows up as "fetch failed"), with backoff.
     let res: Response | null = null;
-    for (let attempt = 0; attempt < 3; attempt++) {
-      res = await f(globalUrl(batch), { headers: { accept: 'application/json', 'user-agent': opts.userAgent ?? 'globalmetrics-ingest' } });
+    let lastError: unknown = null;
+    for (let attempt = 0; attempt < 4; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, (opts.retryMs ?? 15_000) * attempt));
+      try {
+        res = await f(globalUrl(batch), { headers: { accept: 'application/json', 'user-agent': opts.userAgent ?? 'globalmetrics-ingest', connection: 'close' } });
+        lastError = null;
+      } catch (e) {
+        lastError = e;
+        res = null;
+        continue;
+      }
       if (res.ok || (res.status !== 429 && res.status < 500)) break;
-      await new Promise((r) => setTimeout(r, 20_000 * (attempt + 1)));
     }
-    if (!res!.ok) throw new Error(`global: HTTP ${res!.status} for ${batch.length} cities at ${i}`);
-    out.push({ sites: batch, body: await res!.json() });
+    if (!res) {
+      const cause = lastError instanceof Error ? `${lastError.message}${lastError.cause ? ` (${String((lastError.cause as Error).message ?? lastError.cause)})` : ''}` : String(lastError);
+      throw new Error(`global: ${cause} for ${batch.length} cities at ${i}`);
+    }
+    if (!res.ok) throw new Error(`global: HTTP ${res.status} for ${batch.length} cities at ${i}`);
+    out.push({ sites: batch, body: await res.json() });
   }
   return out;
 }

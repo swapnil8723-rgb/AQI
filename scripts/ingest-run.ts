@@ -356,7 +356,7 @@ if (job === 'global') {
   // A failed world refresh must not fail India's hourly run: the world bundle covers
   // 48 hours ahead, so the next run catches up. It shows in /health and as a warning.
   if (nowMs - last > GLOBAL_EVERY_MS) {
-    await timed('global', () => global()).catch((e) => console.warn(`::warning::global failed: ${e instanceof Error ? e.message : String(e)}`));
+    await timed('global', () => global()).catch((e) => console.warn(`::warning::global failed: ${e instanceof Error ? `${e.message}${e.cause ? ` (cause: ${String((e.cause as Error).message ?? e.cause)})` : ''}` : String(e)}`));
   }
 }
 // Yesterday's archive, on the first automatic run of the IST day that finds it missing.

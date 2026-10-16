@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { nowcast, usAqiHourly } from '@saans/aqi';
 import { WORLD_CITIES, worldKey } from '@saans/data';
-import { FUTURE_HOURS, PAST_HOURS, buildGlobal, globalHour, globalNow, globalSeries, globalUrl, scoreBlock } from '../src/global.ts';
+import { FUTURE_HOURS, PAST_HOURS, buildGlobal, fetchGlobalResponses, globalHour, globalNow, globalSeries, globalUrl, scoreBlock } from '../src/global.ts';
 
 const H = 3600_000;
 const T0 = Date.parse('2026-10-16T00:00:00Z');
@@ -114,5 +114,32 @@ describe('WORLD_CITIES', () => {
   });
   it('stays inside the Open-Meteo budget (≈ 4 refreshes × cities ≤ 3,000 calls a day)', () => {
     expect(WORLD_CITIES.length * 4).toBeLessThanOrEqual(3000);
+  });
+});
+
+describe('fetchGlobalResponses', () => {
+  const sites = WORLD_CITIES.slice(0, 3);
+  const ok = () => new Response(JSON.stringify(sites.map(() => ({ hourly: { time: [] } }))), { status: 200 });
+  it('retries a dropped connection and a rate limit, then succeeds', async () => {
+    let calls = 0;
+    const f = (async () => {
+      calls++;
+      if (calls === 1) throw new TypeError('fetch failed', { cause: new Error('other side closed') });
+      if (calls === 2) return new Response('slow down', { status: 429 });
+      return ok();
+    }) as typeof fetch;
+    const out = await fetchGlobalResponses(sites, { fetchImpl: f, pauseMs: 0, retryMs: 0 });
+    expect(calls).toBe(3);
+    expect(out).toHaveLength(1);
+  });
+  it('gives up with the cause after four failures', async () => {
+    const f = (async () => { throw new TypeError('fetch failed', { cause: new Error('ECONNRESET') }); }) as typeof fetch;
+    await expect(fetchGlobalResponses(sites, { fetchImpl: f, pauseMs: 0, retryMs: 0 })).rejects.toThrow(/ECONNRESET/);
+  });
+  it('does not retry a client error', async () => {
+    let calls = 0;
+    const f = (async () => { calls++; return new Response('bad', { status: 400 }); }) as typeof fetch;
+    await expect(fetchGlobalResponses(sites, { fetchImpl: f, pauseMs: 0, retryMs: 0 })).rejects.toThrow(/HTTP 400/);
+    expect(calls).toBe(1);
   });
 });
