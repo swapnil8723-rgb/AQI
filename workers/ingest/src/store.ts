@@ -50,7 +50,7 @@ const READS: Record<string, string> = {
   ours: `SELECT coalesce(json_group_object(city_slug, aqi), '{}') AS j FROM city_hour WHERE hour = ?1 AND ?2 = ?2`,
   accuracy: `SELECT json_object('n', COUNT(*), 'within10', SUM(CASE WHEN ABS(ours - aqi) <= 0.1 * aqi THEN 1 ELSE 0 END),
       'exact', SUM(CASE WHEN ours = aqi THEN 1 ELSE 0 END), 'from', MIN(date), 'to', MAX(date)) AS j
-    FROM bulletin WHERE city_slug IS NOT NULL AND ours IS NOT NULL AND ?1 = ?1 AND ?2 = ?2`,
+    FROM bulletin INDEXED BY bulletin_ours WHERE city_slug IS NOT NULL AND ours IS NOT NULL AND ?1 = ?1 AND ?2 = ?2`,
   coords: `SELECT coalesce(json_group_array(json_object('city', city, 'state', state, 'lat', lat, 'lon', lon)), '[]') AS j
     FROM (SELECT city, state, AVG(lat) AS lat, AVG(lon) AS lon FROM stations WHERE ?1 = ?1 AND ?2 = ?2 GROUP BY city, state)`,
   // Archive rows for hours in [a, b) — callers ask in 6-hour slices to stay under SQLite's 2 MB string limit.

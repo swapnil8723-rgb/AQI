@@ -153,7 +153,7 @@ export async function accuracy(db: D1Database): Promise<Accuracy | null> {
               SUM(CASE WHEN ABS(ours - aqi) <= 0.1 * aqi THEN 1 ELSE 0 END) AS within10,
               SUM(CASE WHEN ours = aqi THEN 1 ELSE 0 END) AS exact,
               MIN(date) AS "from", MAX(date) AS "to"
-       FROM bulletin WHERE city_slug IS NOT NULL AND ours IS NOT NULL`,
+       FROM bulletin INDEXED BY bulletin_ours WHERE city_slug IS NOT NULL AND ours IS NOT NULL`,
     )
     .first<{ n: number; within10: number; exact: number; from: string; to: string }>();
   return r && r.n ? r : null;
