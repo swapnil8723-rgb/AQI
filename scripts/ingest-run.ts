@@ -202,7 +202,10 @@ async function hourly() {
       filled++;
     }
   }
-  await d1('city_hour', cityRows);
+  // A failed archive write must not freeze the site: D1 blocks writes for the
+  // rest of the UTC day once a free-plan limit is hit. The bundle is built from
+  // cityRows anyway, and the next run with working writes refills the last 23 hours.
+  await d1('city_hour', cityRows).catch((e) => console.warn(`::warning::city_hour write failed, bundle still published: ${e instanceof Error ? e.message : String(e)}`));
 
   const byKey = new Map<string, { s: string; t: string; aqi: number; u: number | null; n: number }>();
   for (const r of hoursRaw) byKey.set(`${r.s}@${r.t}`, r);
